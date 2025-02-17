@@ -38,9 +38,25 @@ export function TokenStats({ statistics, topHolders }: TokenStatsProps) {
         href={etherscanUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="hover:text-primary transition-colors"
+        className="inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors font-medium"
       >
         {shortAddress}
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="opacity-50"
+        >
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+          <polyline points="15 3 21 3 21 9" />
+          <line x1="10" y1="14" x2="21" y2="3" />
+        </svg>
       </a>
     );
   };
@@ -49,25 +65,27 @@ export function TokenStats({ statistics, topHolders }: TokenStatsProps) {
     <div className="space-y-6">
       {/* Global Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-card p-6 rounded-lg border">
-          <h3 className="text-sm text-muted-foreground">Total Supply</h3>
-          <p className="text-2xl font-bold">
+        <div className="bg-card p-6 rounded-lg border border-border/50 hover:border-border/80 transition-colors">
+          <h3 className="text-sm text-muted-foreground mb-2">Total Supply</h3>
+          <p className="text-3xl font-bold tracking-tight">
             {formatTokenAmount(statistics.totalSupply)}
           </p>
         </div>
-        <div className="bg-card p-6 rounded-lg border">
-          <h3 className="text-sm text-muted-foreground">Total Transfers</h3>
-          <p className="text-2xl font-bold">
+        <div className="bg-card p-6 rounded-lg border border-border/50 hover:border-border/80 transition-colors">
+          <h3 className="text-sm text-muted-foreground mb-2">
+            Total Transfers
+          </h3>
+          <p className="text-3xl font-bold tracking-tight">
             {formatTransactionCount(statistics.totalTransfers)}
           </p>
         </div>
       </div>
 
       {/* Top Holders Table */}
-      <div className="bg-card rounded-lg border">
-        <h3 className="text-lg font-semibold p-4 border-b">
-          Top 10 Token Holders
-        </h3>
+      <div className="bg-card rounded-lg border border-border/50">
+        <div className="p-4 border-b border-border/50">
+          <h3 className="text-lg font-semibold">Top 10 Token Holders</h3>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-muted/50">
@@ -94,11 +112,14 @@ export function TokenStats({ statistics, topHolders }: TokenStatsProps) {
             </thead>
             <tbody>
               {topHolders.map((holder) => (
-                <tr key={holder.id} className="border-b last:border-b-0">
+                <tr
+                  key={holder.id}
+                  className="border-b last:border-b-0 border-border/50 hover:bg-muted/50 transition-colors"
+                >
                   <td className="p-4 font-mono text-sm">
                     {formatAddress(holder.id)}
                   </td>
-                  <td className="p-4 text-right">
+                  <td className="p-4 text-right font-medium">
                     {formatTokenAmount(holder.balance)}
                   </td>
                   <td className="p-4 text-right">
@@ -110,7 +131,7 @@ export function TokenStats({ statistics, topHolders }: TokenStatsProps) {
                   <td className="p-4 text-right">
                     {formatTransactionCount(holder.transactionCount)}
                   </td>
-                  <td className="p-4 text-right">
+                  <td className="p-4 text-right text-muted-foreground">
                     {formatDate(holder.lastTransactionTime)}
                   </td>
                 </tr>
