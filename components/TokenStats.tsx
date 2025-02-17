@@ -30,16 +30,25 @@ export function TokenStats({ statistics, topHolders }: TokenStatsProps) {
     return format(Number(timestamp) * 1000, "MMM d, yyyy HH:mm");
   };
 
+  const formatAddress = (address: string) => {
+    const shortAddress = `${address.slice(0, 8)}...${address.slice(-6)}`;
+    const etherscanUrl = `https://etherscan.io/address/${address}`;
+    return (
+      <a
+        href={etherscanUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="hover:text-primary transition-colors"
+      >
+        {shortAddress}
+      </a>
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* Global Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-card p-6 rounded-lg border">
-          <h3 className="text-sm text-muted-foreground">Total Holders</h3>
-          <p className="text-2xl font-bold">
-            {formatTransactionCount(statistics.totalHolders)}
-          </p>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-card p-6 rounded-lg border">
           <h3 className="text-sm text-muted-foreground">Total Supply</h3>
           <p className="text-2xl font-bold">
@@ -87,7 +96,7 @@ export function TokenStats({ statistics, topHolders }: TokenStatsProps) {
               {topHolders.map((holder) => (
                 <tr key={holder.id} className="border-b last:border-b-0">
                   <td className="p-4 font-mono text-sm">
-                    {holder.id.slice(0, 8)}...{holder.id.slice(-6)}
+                    {formatAddress(holder.id)}
                   </td>
                   <td className="p-4 text-right">
                     {formatTokenAmount(holder.balance)}
