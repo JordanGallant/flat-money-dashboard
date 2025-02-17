@@ -40,6 +40,9 @@ export function TokenStats({
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
+  // Use statistics in the component to fix the unused variable error
+  const { totalHolders } = statistics;
+
   // Calculate pagination values
   const totalPages = Math.ceil(topHolders.length / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
@@ -171,7 +174,12 @@ export function TokenStats({
       <div className="bg-card/50 backdrop-blur-sm rounded-xl border border-border/50 overflow-hidden">
         <div className="p-4 border-b border-border/50 bg-muted/20">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Token Holders</h3>
+            <div>
+              <h3 className="text-lg font-semibold">Token Holders</h3>
+              <p className="text-sm text-muted-foreground">
+                Total Holders: {formatTransactionCount(totalHolders)}
+              </p>
+            </div>
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Show</span>
               <Select

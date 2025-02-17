@@ -1,7 +1,7 @@
 import { GraphQLClient } from "graphql-request";
 
 export const graphqlClient = new GraphQLClient(
-  "http://localhost:8080/v1/graphql"
+  "https://indexer.dev.hyperindex.xyz/27c8725/v1/graphql"
 );
 
 export interface PriceSnapshot {

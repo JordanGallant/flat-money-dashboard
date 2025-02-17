@@ -1,23 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import {
-  graphqlClient,
-  PriceQueryResponse,
-  TokenQueryResponse,
-} from "@/lib/graphql";
+import { graphqlClient, TokenQueryResponse, TokenHolder } from "@/lib/graphql";
 import { PriceChart } from "@/components/PriceChart";
 import { TokenStats } from "@/components/TokenStats";
 import { useState, useCallback } from "react";
-
-const priceQuery = `
-  query myQuery {
-    ARKMPriceSnapshot(limit: 1000, order_by: {timestamp: desc}) {
-      priceUSD
-      timestamp
-    }
-  }
-`;
 
 const getTokenQuery = (offset: number = 0) => `
   query tokenData {
