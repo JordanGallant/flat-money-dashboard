@@ -22,6 +22,9 @@ interface TokenStatsProps {
   statistics: TokenStatistics;
   topHolders: TokenHolder[];
   currentPrice?: number;
+  onLoadMore: () => void;
+  hasMore: boolean;
+  isLoading: boolean;
 }
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
@@ -30,6 +33,9 @@ export function TokenStats({
   statistics,
   topHolders,
   currentPrice,
+  onLoadMore,
+  hasMore,
+  isLoading,
 }: TokenStatsProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -250,46 +256,64 @@ export function TokenStats({
         <div className="p-4 border-t border-border/50 bg-muted/20">
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              Showing {startIndex + 1}-{Math.min(endIndex, topHolders.length)}{" "}
-              of {topHolders.length} holders
+              Showing {topHolders.length} holders
             </p>
 
-            <Pagination>
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                  />
-                </PaginationItem>
-
-                {getPageNumbers().map((page, index) =>
-                  page === "ellipsis" ? (
-                    <PaginationItem key={`ellipsis-${index}`}>
-                      <PaginationEllipsis />
-                    </PaginationItem>
+            <div className="flex items-center gap-4">
+              {hasMore && (
+                <button
+                  onClick={onLoadMore}
+                  disabled={isLoading}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary hover:text-primary/80 disabled:opacity-50 disabled:pointer-events-none transition-colors"
+                >
+                  {isLoading ? (
+                    <>
+                      <div className="size-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      Loading...
+                    </>
                   ) : (
-                    <PaginationItem key={page}>
-                      <PaginationLink
-                        onClick={() => setCurrentPage(page as number)}
-                        isActive={currentPage === page}
-                      >
-                        {page}
-                      </PaginationLink>
-                    </PaginationItem>
-                  )
-                )}
+                    "Load More"
+                  )}
+                </button>
+              )}
 
-                <PaginationItem>
-                  <PaginationNext
-                    onClick={() =>
-                      setCurrentPage((p) => Math.min(totalPages, p + 1))
-                    }
-                    disabled={currentPage === totalPages}
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                    />
+                  </PaginationItem>
+
+                  {getPageNumbers().map((page, index) =>
+                    page === "ellipsis" ? (
+                      <PaginationItem key={`ellipsis-${index}`}>
+                        <PaginationEllipsis />
+                      </PaginationItem>
+                    ) : (
+                      <PaginationItem key={page}>
+                        <PaginationLink
+                          onClick={() => setCurrentPage(page as number)}
+                          isActive={currentPage === page}
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    )
+                  )}
+
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={() =>
+                        setCurrentPage((p) => Math.min(totalPages, p + 1))
+                      }
+                      disabled={currentPage === totalPages}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
           </div>
         </div>
       </div>

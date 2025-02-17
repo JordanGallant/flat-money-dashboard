@@ -8,6 +8,7 @@ import {
 } from "@/lib/graphql";
 import { PriceChart } from "@/components/PriceChart";
 import { TokenStats } from "@/components/TokenStats";
+import { useState, useCallback } from "react";
 
 const priceQuery = `
   query myQuery {
@@ -18,13 +19,13 @@ const priceQuery = `
   }
 `;
 
-const tokenQuery = `
+const getTokenQuery = (offset: number = 0) => `
   query tokenData {
     ARKMPriceSnapshot(limit: 1000, order_by: {timestamp: desc}) {
       priceUSD
       timestamp
     }
-    TokenHolder(limit: 1000, order_by: {balance: desc}) {
+    TokenHolder(limit: 1000, offset: ${offset}, order_by: {balance: desc}) {
       id
       balance
       totalSent
@@ -63,13 +64,24 @@ function formatTransactionCount(value: string) {
 }
 
 export default function Home() {
+  const [currentOffset, setCurrentOffset] = useState(0);
+  const [holders, setHolders] = useState<TokenHolder[]>([]);
+
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["token-data"],
+    queryKey: ["token-data", currentOffset],
     queryFn: async () => {
-      const data = await graphqlClient.request<TokenQueryResponse>(tokenQuery);
+      const data = await graphqlClient.request<TokenQueryResponse>(
+        getTokenQuery(currentOffset)
+      );
+      // Merge new holders with existing ones
+      setHolders((prev) => [...prev, ...data.TokenHolder]);
       return data;
     },
   });
+
+  const handleLoadMore = useCallback(() => {
+    setCurrentOffset((prev) => prev + 1000);
+  }, []);
 
   const currentPrice = data?.ARKMPriceSnapshot[0]?.priceUSD
     ? formatPrice(data.ARKMPriceSnapshot[0].priceUSD)
@@ -191,8 +203,11 @@ export default function Home() {
         {data && data.TokenStatistics.length > 0 && (
           <TokenStats
             statistics={data.TokenStatistics[0]}
-            topHolders={data.TokenHolder}
+            topHolders={holders}
             currentPrice={currentPrice ?? undefined}
+            onLoadMore={handleLoadMore}
+            hasMore={data.TokenHolder.length === 1000} // If we got 1000 results, there might be more
+            isLoading={isLoading}
           />
         )}
       </main>

@@ -32,5 +32,10 @@ export interface TokenStatistics {
 export interface TokenQueryResponse {
   ARKMPriceSnapshot: PriceSnapshot[];
   TokenHolder: TokenHolder[];
+  TokenHolder_aggregate: {
+    aggregate: {
+      count: number;
+    };
+  };
   TokenStatistics: TokenStatistics[];
 }
