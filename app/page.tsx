@@ -24,7 +24,7 @@ const tokenQuery = `
       priceUSD
       timestamp
     }
-    TokenHolder(limit: 10, order_by: {balance: desc}) {
+    TokenHolder(limit: 1000, order_by: {balance: desc}) {
       id
       balance
       totalSent
