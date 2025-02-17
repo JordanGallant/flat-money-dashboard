@@ -29,13 +29,14 @@ export function PriceChart({ data }: PriceChartProps) {
   const maxPrice = Math.ceil(Math.max(...prices) * 1.05 * 100) / 100;
 
   return (
-    <div className="w-full h-[400px] bg-card p-6 rounded-lg border">
+    <div className="w-full h-[400px]">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={formattedData}>
           <CartesianGrid
             strokeDasharray="3 3"
             vertical={false}
             stroke="hsl(var(--muted))"
+            opacity={0.5}
           />
           <XAxis
             dataKey="formattedDate"
@@ -43,6 +44,7 @@ export function PriceChart({ data }: PriceChartProps) {
             tickFormatter={(value) => format(new Date(value), "MMM d")}
             tickMargin={10}
             axisLine={{ stroke: "hsl(var(--muted))" }}
+            style={{ opacity: 0.5 }}
           />
           <YAxis
             domain={[minPrice, maxPrice]}
@@ -51,12 +53,13 @@ export function PriceChart({ data }: PriceChartProps) {
             tickMargin={10}
             axisLine={{ stroke: "hsl(var(--muted))" }}
             width={80}
+            style={{ opacity: 0.5 }}
           />
           <Tooltip
             content={({ active, payload }) => {
               if (active && payload && payload.length) {
                 return (
-                  <div className="bg-popover border border-border p-3 rounded-lg shadow-lg">
+                  <div className="bg-popover/80 backdrop-blur-sm border border-border p-3 rounded-lg shadow-xl">
                     <p className="text-sm font-mono mb-1 text-muted-foreground">
                       {format(
                         Number(payload[0].payload.timestamp) * 1000,
@@ -75,14 +78,14 @@ export function PriceChart({ data }: PriceChartProps) {
           <Line
             type="monotone"
             dataKey="priceUSD"
-            stroke="hsl(var(--chart-1))"
+            stroke="hsl(var(--primary))"
             strokeWidth={2}
             dot={false}
             activeDot={{
-              r: 4,
-              fill: "hsl(var(--chart-1))",
+              r: 6,
+              fill: "hsl(var(--primary))",
               stroke: "hsl(var(--background))",
-              strokeWidth: 2,
+              strokeWidth: 3,
             }}
             animationDuration={500}
           />

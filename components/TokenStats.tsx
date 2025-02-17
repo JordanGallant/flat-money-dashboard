@@ -65,13 +65,13 @@ export function TokenStats({ statistics, topHolders }: TokenStatsProps) {
     <div className="space-y-6">
       {/* Global Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-card p-6 rounded-lg border border-border/50 hover:border-border/80 transition-colors">
+        <div className="bg-card/50 backdrop-blur-sm p-6 rounded-xl border border-border/50 hover:border-border/80 transition-all hover:shadow-lg">
           <h3 className="text-sm text-muted-foreground mb-2">Total Supply</h3>
           <p className="text-3xl font-bold tracking-tight">
             {formatTokenAmount(statistics.totalSupply)}
           </p>
         </div>
-        <div className="bg-card p-6 rounded-lg border border-border/50 hover:border-border/80 transition-colors">
+        <div className="bg-card/50 backdrop-blur-sm p-6 rounded-xl border border-border/50 hover:border-border/80 transition-all hover:shadow-lg">
           <h3 className="text-sm text-muted-foreground mb-2">
             Total Transfers
           </h3>
@@ -82,14 +82,14 @@ export function TokenStats({ statistics, topHolders }: TokenStatsProps) {
       </div>
 
       {/* Top Holders Table */}
-      <div className="bg-card rounded-lg border border-border/50">
-        <div className="p-4 border-b border-border/50">
+      <div className="bg-card/50 backdrop-blur-sm rounded-xl border border-border/50 overflow-hidden">
+        <div className="p-4 border-b border-border/50 bg-muted/20">
           <h3 className="text-lg font-semibold">Top 10 Token Holders</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-muted/50">
-              <tr>
+            <thead>
+              <tr className="border-b border-border/50 bg-muted/10">
                 <th className="text-left p-4 text-sm font-medium text-muted-foreground">
                   Address
                 </th>
@@ -114,7 +114,7 @@ export function TokenStats({ statistics, topHolders }: TokenStatsProps) {
               {topHolders.map((holder) => (
                 <tr
                   key={holder.id}
-                  className="border-b last:border-b-0 border-border/50 hover:bg-muted/50 transition-colors"
+                  className="border-b last:border-b-0 border-border/50 hover:bg-muted/10 transition-colors"
                 >
                   <td className="p-4 font-mono text-sm">
                     {formatAddress(holder.id)}
