@@ -4,9 +4,14 @@ import { format } from "date-fns";
 interface TokenStatsProps {
   statistics: TokenStatistics;
   topHolders: TokenHolder[];
+  currentPrice?: number;
 }
 
-export function TokenStats({ statistics, topHolders }: TokenStatsProps) {
+export function TokenStats({
+  statistics,
+  topHolders,
+  currentPrice,
+}: TokenStatsProps) {
   const formatTokenAmount = (value: string) => {
     // Convert from base 18 to regular numbers
     const num = Number(value) / 1_000_000_000_000_000_000;
@@ -61,27 +66,26 @@ export function TokenStats({ statistics, topHolders }: TokenStatsProps) {
     );
   };
 
+  const formatUSDValue = (tokenAmount: string) => {
+    if (!currentPrice) return "-";
+    const tokens = Number(tokenAmount) / 1_000_000_000_000_000_000;
+    const usdValue = tokens * currentPrice;
+
+    // Format with appropriate suffixes (B for billion, M for million, K for thousand)
+    if (usdValue >= 1_000_000_000) {
+      return `$${(usdValue / 1_000_000_000).toFixed(2)}B`;
+    } else if (usdValue >= 1_000_000) {
+      return `$${(usdValue / 1_000_000).toFixed(2)}M`;
+    } else if (usdValue >= 1_000) {
+      return `$${(usdValue / 1_000).toFixed(2)}K`;
+    } else {
+      return `$${usdValue.toFixed(2)}`;
+    }
+  };
+
   return (
     <div className="space-y-6">
-      {/* Global Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-card/50 backdrop-blur-sm p-6 rounded-xl border border-border/50 hover:border-border/80 transition-all hover:shadow-lg">
-          <h3 className="text-sm text-muted-foreground mb-2">Total Supply</h3>
-          <p className="text-3xl font-bold tracking-tight">
-            {formatTokenAmount(statistics.totalSupply)}
-          </p>
-        </div>
-        <div className="bg-card/50 backdrop-blur-sm p-6 rounded-xl border border-border/50 hover:border-border/80 transition-all hover:shadow-lg">
-          <h3 className="text-sm text-muted-foreground mb-2">
-            Total Transfers
-          </h3>
-          <p className="text-3xl font-bold tracking-tight">
-            {formatTransactionCount(statistics.totalTransfers)}
-          </p>
-        </div>
-      </div>
-
-      {/* Top Holders Table */}
+      {/* Remove the Global Statistics section and start directly with the table */}
       <div className="bg-card/50 backdrop-blur-sm rounded-xl border border-border/50 overflow-hidden">
         <div className="p-4 border-b border-border/50 bg-muted/20">
           <h3 className="text-lg font-semibold">Top 10 Token Holders</h3>
@@ -95,6 +99,9 @@ export function TokenStats({ statistics, topHolders }: TokenStatsProps) {
                 </th>
                 <th className="text-right p-4 text-sm font-medium text-muted-foreground">
                   Balance
+                </th>
+                <th className="text-right p-4 text-sm font-medium text-muted-foreground">
+                  USD Value
                 </th>
                 <th className="text-right p-4 text-sm font-medium text-muted-foreground">
                   Total Sent
@@ -121,6 +128,9 @@ export function TokenStats({ statistics, topHolders }: TokenStatsProps) {
                   </td>
                   <td className="p-4 text-right font-medium">
                     {formatTokenAmount(holder.balance)}
+                  </td>
+                  <td className="p-4 text-right font-medium text-muted-foreground">
+                    {formatUSDValue(holder.balance)}
                   </td>
                   <td className="p-4 text-right">
                     {formatTokenAmount(holder.totalSent)}

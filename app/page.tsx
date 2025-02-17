@@ -46,6 +46,22 @@ function formatPrice(priceString: string): number {
   return Number(priceString) / 1_000_000_000_000;
 }
 
+function formatTokenAmount(value: string) {
+  const num = Number(value) / 1_000_000_000_000_000_000;
+  if (num >= 1_000_000) {
+    return `${(num / 1_000_000).toFixed(2)}M`;
+  } else if (num >= 1_000) {
+    return `${(num / 1_000).toFixed(2)}K`;
+  } else {
+    return num.toFixed(2);
+  }
+}
+
+function formatTransactionCount(value: string) {
+  const num = Number(value);
+  return new Intl.NumberFormat().format(num);
+}
+
 export default function Home() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["token-data"],
@@ -102,6 +118,34 @@ export default function Home() {
               </p>
             </div>
           )}
+
+          {data && data.TokenStatistics.length > 0 && (
+            <>
+              <div className="bg-card/50 backdrop-blur-sm p-6 rounded-xl border border-border/50 hover:border-border/80 transition-all hover:shadow-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="size-2 rounded-full bg-blue-500" />
+                  <p className="text-sm text-muted-foreground">Total Supply</p>
+                </div>
+                <p className="text-3xl font-bold tracking-tight">
+                  {formatTokenAmount(data.TokenStatistics[0].totalSupply)}
+                </p>
+              </div>
+
+              <div className="bg-card/50 backdrop-blur-sm p-6 rounded-xl border border-border/50 hover:border-border/80 transition-all hover:shadow-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="size-2 rounded-full bg-violet-500" />
+                  <p className="text-sm text-muted-foreground">
+                    Total Transfers
+                  </p>
+                </div>
+                <p className="text-3xl font-bold tracking-tight">
+                  {formatTransactionCount(
+                    data.TokenStatistics[0].totalTransfers
+                  )}
+                </p>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Loading State */}
@@ -148,6 +192,7 @@ export default function Home() {
           <TokenStats
             statistics={data.TokenStatistics[0]}
             topHolders={data.TokenHolder}
+            currentPrice={currentPrice ?? undefined}
           />
         )}
       </main>
