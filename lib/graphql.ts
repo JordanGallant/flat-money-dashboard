@@ -1,7 +1,7 @@
 import { GraphQLClient } from "graphql-request";
 
 export const graphqlClient = new GraphQLClient(
-  "https://indexer.dev.hyperindex.xyz/c67bfa4/v1/graphql"
+  "https://indexer.dev.hyperindex.xyz/98fb2aa/v1/graphql"
 );
 
 export interface SiloApproval {
@@ -28,17 +28,14 @@ export interface SiloDelegateChanged{
 Silo_DelegateChanged: SiloDelegateChanged[];
 }
 
-export interface GetSiloTransfer{
-  Silo_Transfer: SiloTransfer[];
+export interface RawEvent {
+  block_timestamp: number;
+  event_name: string;
+  data: string;
 }
-export interface SiloTransfer{
-  value: string;
-  from: string;
-  id: string;
-  to: string;
-  db_write_timestamp: string;
 
-
+export interface GetTransferResponse {
+  raw_events: RawEvent[];
 }
 
 export interface GetSiloDelegateVotesChanged{
