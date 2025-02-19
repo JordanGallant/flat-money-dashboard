@@ -168,10 +168,76 @@ export default function EventGraph() {
   return (
     <>
     <div>
+      <div 
+        style={{
+          border: '1px solid #e0e0e0',
+          borderRadius: '8px',
+          padding: '16px',
+          marginBottom: '24px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          backgroundColor: 'white',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+        }}
+      >
+        <h1 style={{ 
+          margin: 0,
+          fontSize: '24px',
+          fontWeight: '600',
+          color: '#333'
+        }}>
+          Event Graph
+        </h1>
 
-    </div>
-    <div>
-      <h1>Event Graph</h1>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <span style={{
+            fontSize: '14px',
+            color: '#666',
+            marginRight: '4px'
+          }}>Time:</span>
+          <select 
+            style={{
+              padding: '8px 12px',
+              borderRadius: '6px',
+              border: '1px solid #e0e0e0',
+              fontSize: '14px',
+              backgroundColor: 'white',
+              cursor: 'pointer',
+              outline: 'none',
+              minWidth: '120px'
+            }}
+          >
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+
+          <span style={{
+            fontSize: '14px',
+            color: '#666',
+            marginRight: '4px'
+          }}>Events:</span>
+          <select 
+            style={{
+              padding: '8px 12px',
+              borderRadius: '6px',
+              border: '1px solid #e0e0e0',
+              fontSize: '14px',
+              backgroundColor: 'white',
+              cursor: 'pointer',
+              outline: 'none',
+              minWidth: '120px'
+            }}
+          >
+            <option value="approval">Approval</option>
+            <option value="delegateChanged">Delegate Changed</option>
+            <option value="transfer">Transfer</option>
+            <option value="delegateVotes">Delegate Votes</option>
+            <option value="ownershipTransfer">Ownership Transfer</option>
+          </select>
+        </div>
+      </div>
       
       <div style={{ width: "100%", height: 400 }}>
         <ResponsiveContainer>
