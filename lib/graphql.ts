@@ -58,3 +58,24 @@ export interface SiloOwnershipTransferred{
 		previousOwner: string;
 		db_write_timestamp: string;
 }
+
+export interface RawEventsAggregate {
+  raw_events_aggregate: {
+    aggregate: {
+      count: number;
+    };
+  };
+}
+
+export interface GetEventStatsResponse {
+  current_period: {
+    aggregate: {
+      count: number;
+    };
+  };
+  previous_period: {
+    aggregate: {
+      count: number;
+    };
+  };
+}

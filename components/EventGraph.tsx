@@ -12,9 +12,12 @@ import {
 import { FaGithub } from "react-icons/fa";
 
 
+
 // Simplified to only include BaseEvent and TransferEvent
 interface BaseEvent {
   db_write_timestamp: string;
+  block_timestamp: number;
+  event_name: string;
 }
 
 interface TransferEvent extends BaseEvent {
@@ -74,6 +77,7 @@ export default function EventGraph() {
   const [previousEventCounts, setPreviousEventCounts] = useState<
     Record<string, number>
   >({});
+  const [last30MinCount, setLast30MinCount] = useState<number>(0);
   const [timeRange, setTimeRange] = useState<"day" | "week" | "month">("week");
   const [selectedEvent, setSelectedEvent] = useState<string>("Transfer");
   const [showPreviousPeriod, setShowPreviousPeriod] = useState(false);
@@ -81,11 +85,46 @@ export default function EventGraph() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // Add query for total events across all types
+
+    
+
+        // Add query for last 30 minutes
+        const thirtyMinutesAgo = Math.floor(Date.now() / 1000) - 30 * 60;
+        const last30MinQuery = {
+          query: `
+            query RecentEvents {
+              raw_events(
+                where: {
+                  event_name: {_eq: "${selectedEvent}"}, 
+                  block_timestamp: {_gte: ${thirtyMinutesAgo}}
+                }
+              ) {
+                block_timestamp
+                event_name
+              }
+            }
+          `,
+          key: "raw_events",
+        };
+
+        const last30MinResponse = await graphqlClient.request<EventResponse<TransferEvent>>(
+          last30MinQuery.query
+        );
+        
+        setLast30MinCount(last30MinResponse[last30MinQuery.key]?.length || 0);
+
         // Fetch current period
         const currentQuery = getQueryForTimeRange(timeRange, selectedEvent);
         const currentResponse = await graphqlClient.request<
           EventResponse<TransferEvent>
         >(currentQuery.query);
+        
+        console.log('Current Period Response:', {
+          query: currentQuery,
+          response: currentResponse,
+          eventCount: currentResponse[currentQuery.key]?.length || 0
+        });
 
         // Calculate previous period timestamps
         const timeOffset =
@@ -130,10 +169,17 @@ export default function EventGraph() {
           EventResponse<TransferEvent>
         >(previousQuery.query);
 
+        console.log('Previous Period Response:', {
+          query: previousQuery,
+          response: previousResponse,
+          eventCount: previousResponse[previousQuery.key]?.length || 0
+        });
+
         if (
           !currentResponse[currentQuery.key] ||
           !Array.isArray(currentResponse[currentQuery.key])
         ) {
+          console.log('Invalid response format:', currentResponse);
           return;
         }
 
@@ -168,7 +214,7 @@ export default function EventGraph() {
           }
 
           // Count current period events
-          currentResponse[currentQuery.key].forEach((event: any) => {
+          currentResponse[currentQuery.key].forEach((event: BaseEvent) => {
             const date = new Date(event.block_timestamp * 1000);
             const hourStr = date.toLocaleString("en-US", {
               day: "numeric",
@@ -182,7 +228,7 @@ export default function EventGraph() {
           });
 
           // Count previous period events
-          previousResponse[previousQuery.key].forEach((event: any) => {
+          previousResponse[previousQuery.key].forEach((event: BaseEvent) => {
             const date = new Date(event.block_timestamp * 1000);
             const hourStr = date.toLocaleString("en-US", {
               day: "numeric",
@@ -220,7 +266,7 @@ export default function EventGraph() {
           }
 
           // Count events for both periods
-          currentResponse[currentQuery.key].forEach((event: any) => {
+          currentResponse[currentQuery.key].forEach((event: BaseEvent) => {
             const date = new Date(event.block_timestamp * 1000);
             const dayStr = date.toLocaleString("en-US", {
               weekday: "short",
@@ -232,7 +278,7 @@ export default function EventGraph() {
             }
           });
 
-          previousResponse[previousQuery.key].forEach((event: any) => {
+          previousResponse[previousQuery.key].forEach((event: BaseEvent) => {
             const date = new Date(event.block_timestamp * 1000);
             const dayStr = date.toLocaleString("en-US", {
               weekday: "short",
@@ -268,7 +314,7 @@ export default function EventGraph() {
           }
 
           // Count events for both periods
-          currentResponse[currentQuery.key].forEach((event: any) => {
+          currentResponse[currentQuery.key].forEach((event: BaseEvent) => {
             const date = new Date(event.block_timestamp * 1000);
             const dayStr = date.toLocaleDateString("en-US", {
               day: "numeric",
@@ -279,7 +325,7 @@ export default function EventGraph() {
             }
           });
 
-          previousResponse[previousQuery.key].forEach((event: any) => {
+          previousResponse[previousQuery.key].forEach((event: BaseEvent) => {
             const date = new Date(event.block_timestamp * 1000);
             const dayStr = date.toLocaleDateString("en-US", {
               day: "numeric",
@@ -348,18 +394,99 @@ export default function EventGraph() {
           borderRadius: "8px",
           padding: "16px",
           marginBottom: "24px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
           backgroundColor: "white",
           boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
         }}
       >
-        <h1 style={{ fontSize: "24px", fontWeight: "600", color: "#333" }}>
+        <h1 style={{ fontSize: "24px", fontWeight: "600", color: "#333", marginBottom: "16px" }}>
           {selectedEvent} Events
         </h1>
+        
+        <div style={{ 
+          display: "grid", 
+          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
+          gap: "16px",
+          marginBottom: "16px" 
+        }}>
+          {/* Last 30min Stats */}
+          <div style={{
+            padding: "16px",
+            borderRadius: "8px",
+            backgroundColor: "#f8f9fa",
+            border: "1px solid #e9ecef",
+            boxShadow: "0 2px 4px rgba(0,0,0,0.05)"
+          }}>
+            <div style={{ fontSize: "14px", color: "#6c757d", marginBottom: "4px" }}>
+              Last 30 Minutes
+            </div>
+            <div style={{ fontSize: "24px", fontWeight: "bold", color: "#FF8C00" }}>
+              {last30MinCount}
+            </div>
+            <div style={{ fontSize: "12px", color: "#6c757d" }}>events</div>
+          </div>
 
-        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+          {/* Current Period Stats */}
+          <div style={{
+            padding: "16px",
+            borderRadius: "8px",
+            backgroundColor: "#f8f9fa",
+            border: "1px solid #e9ecef",
+            boxShadow: "0 2px 4px rgba(0,0,0,0.05)"
+          }}>
+            <div style={{ fontSize: "14px", color: "#6c757d", marginBottom: "4px" }}>
+              {selectedEvent} Events
+            </div>
+            <div style={{ fontSize: "24px", fontWeight: "bold", color: "#FF8C00" }}>
+              {Object.values(eventCounts).reduce((sum, count) => sum + count, 0)}
+            </div>
+            <div style={{ fontSize: "12px", color: "#6c757d" }}>current period</div>
+          </div>
+
+          {/* Percentage Change Stats */}
+          {showPreviousPeriod && (
+            <div style={{
+              padding: "16px",
+              borderRadius: "8px",
+              backgroundColor: "#f8f9fa",
+              border: "1px solid #e9ecef",
+              boxShadow: "0 2px 4px rgba(0,0,0,0.05)"
+            }}>
+              <div style={{ fontSize: "14px", color: "#6c757d", marginBottom: "4px" }}>
+                Period over Period
+              </div>
+              {(() => {
+                const currentTotal = Object.values(eventCounts).reduce((sum, count) => sum + count, 0);
+                const previousTotal = Object.values(previousEventCounts).reduce((sum, count) => sum + count, 0);
+                const percentageChange = previousTotal === 0 
+                  ? 100 
+                  : ((currentTotal - previousTotal) / previousTotal) * 100;
+                const isPositive = percentageChange > 0;
+                
+                return (
+                  <>
+                    <div style={{ 
+                      fontSize: "24px", 
+                      fontWeight: "bold", 
+                      color: isPositive ? "#22c55e" : "#ef4444",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px"
+                    }}>
+                      {isPositive ? "+" : ""}{percentageChange.toFixed(1)}%
+                      {isPositive 
+                        ? <span style={{ fontSize: "20px" }}>↑</span>
+                        : <span style={{ fontSize: "20px" }}>↓</span>
+                      }
+                    </div>
+                    <div style={{ fontSize: "12px", color: "#6c757d" }}>change</div>
+                  </>
+                );
+              })()}
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: "flex", gap: "12px", alignItems: "center", justifyContent: "flex-end" }}>
           <span style={{ fontSize: "14px", color: "#666" }}>Event Type:</span>
           <select
             value={selectedEvent}
@@ -409,19 +536,27 @@ export default function EventGraph() {
         <label
           style={{
             display: "flex",
-            gap: "4px",
+            alignItems: "center",
+            gap: "8px",
             fontSize: "14px",
-            color: "#666",
+            color: showPreviousPeriod ? "#FF8C00" : "#666",
             cursor: "pointer",
+            padding: "8px",
+            borderRadius: "6px",
+            transition: "all 0.2s ease",
+            marginTop: "12px"
           }}
         >
           <input
             type="checkbox"
             checked={showPreviousPeriod}
             onChange={(e) => setShowPreviousPeriod(e.target.checked)}
-            style={{ cursor: "pointer" }}
+            style={{ 
+              cursor: "pointer",
+              accentColor: "#FF8C00"
+            }}
           />
-          Show Previous Period
+          Compare with Previous Period
         </label>
       </div>
 
@@ -478,12 +613,7 @@ export default function EventGraph() {
         }}
       >
         <span>Powered by </span>
-        <a
-          href="https://envio.dev"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ display: "inline-flex", alignItems: "center" }}
-        >
+        <div style={{ display: "inline-flex", alignItems: "center" }}>
           <a
             href="https://envio.dev/app/JordanGallant/silo-envio-demo-indexer"
             target="_blank"
@@ -493,12 +623,18 @@ export default function EventGraph() {
             HyperIndex
           </a>
           <p style={{ margin: "0 4px" }}>on</p>
-          <img
-            src="https://d30nibem0g3f7u.cloudfront.net/Envio-Logo.png"
-            alt="Envio Logo"
-            style={{ height: "20px", marginRight: "4px" }}
-          />
-        </a>
+          <a
+            href="https://envio.dev"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <img
+              src="https://d30nibem0g3f7u.cloudfront.net/Envio-Logo.png"
+              alt="Envio Logo"
+              style={{ height: "20px", marginRight: "4px" }}
+            />
+          </a>
+        </div>
         <a href="https://github.com/JordanGallant/event-density-template/tree/main" target="_blank" rel="noopener noreferrer">
           <FaGithub />
         </a>
