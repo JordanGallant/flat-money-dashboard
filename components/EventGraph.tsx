@@ -12,42 +12,45 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-// Define TypeScript interfaces for responses
-interface SiloApproval {
+// Add these interfaces before the eventQueries object
+interface BaseEvent {
+  db_write_timestamp: string;
+}
+
+interface ApprovalEvent extends BaseEvent {
   id: string;
   owner: string;
   spender: string;
   value: string;
-  db_write_timestamp: string;
 }
 
-interface SiloDelegateChanged {
+interface DelegateChangedEvent extends BaseEvent {
   delegator: string;
   fromDelegate: string;
   toDelegate: string;
-  db_write_timestamp: string;
 }
 
-interface SiloTransfer {
+interface TransferEvent extends BaseEvent {
   value: string;
   from: string;
   to: string;
-  db_write_timestamp: string;
 }
 
-interface SiloDelegateVotesChanged {
+interface DelegateVotesChangedEvent extends BaseEvent {
   newBalance: string;
   previousBalance: string;
   delegate: string;
-  db_write_timestamp: string;
 }
 
-interface SiloOwnershipTransferred {
+interface OwnershipTransferredEvent extends BaseEvent {
   id: string;
   newOwner: string;
   previousOwner: string;
-  db_write_timestamp: string;
 }
+
+type EventResponse<T> = {
+  [key: string]: T[];
+};
 
 // Define an object mapping event types to their query and response type
 const eventQueries = {
@@ -128,8 +131,15 @@ export default function EventGraph() {
       try {
         const { query, key } = eventQueries[selectedEvent];
 
-        // Make a typed GraphQL request
-        const response = await graphqlClient.request<{ [key: string]: any }>(query);
+        // Update the type based on the selected event
+        type EventType = 
+          | ApprovalEvent 
+          | DelegateChangedEvent 
+          | TransferEvent 
+          | DelegateVotesChangedEvent 
+          | OwnershipTransferredEvent;
+
+        const response = await graphqlClient.request<EventResponse<EventType>>(query);
 
         console.log(`API ${selectedEvent}:`, response[key]);
 
@@ -152,12 +162,12 @@ export default function EventGraph() {
         }
 
         // Aggregate data based on timestamp
-        response[key].forEach((event: any) => {
+        response[key].forEach((event: EventType) => {
           const date = new Date(event.db_write_timestamp);
           if (date >= twentyFourHoursAgo) {
             const timestamp = `${date.getDate()}-${date.toLocaleString("default", { month: "short" })} ${date.getHours().toString().padStart(2, "0")}:00`;
             if (counts[timestamp] !== undefined) {
-              counts[timestamp] += 1;  // Simply count each transfer event
+              counts[timestamp] += 1;
             }
           }
         });
