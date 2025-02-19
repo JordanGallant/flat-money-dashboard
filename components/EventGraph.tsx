@@ -97,7 +97,7 @@ const eventQueries = {
   delegateVotes: {
     query: `
       query GetSiloDelegateVotesChanged {
-        Silo_DelegateVotesChanged {
+        Silo_DelegateVotesChanged(limit: 1000, order_by: {db_write_timestamp: desc}) {
           newBalance
           previousBalance
           delegate
@@ -110,7 +110,7 @@ const eventQueries = {
   ownershipTransfer: {
     query: `
       query GetSiloOwnershipTransferred {
-        Silo_OwnershipTransferred {
+        Silo_OwnershipTransferred(limit: 1000, order_by: {db_write_timestamp: desc}) {
           id
           newOwner
           previousOwner
@@ -125,13 +125,12 @@ const eventQueries = {
 export default function EventGraph() {
   const [dailyCounts, setDailyCounts] = useState<Record<string, number>>({});
   const [selectedEvent, setSelectedEvent] = useState<keyof typeof eventQueries>("approval");
+  const [timeRange, setTimeRange] = useState<'day' | 'week' | 'month'>('day');
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const { query, key } = eventQueries[selectedEvent];
-
-        // Update the type based on the selected event
         type EventType = 
           | ApprovalEvent 
           | DelegateChangedEvent 
@@ -140,32 +139,59 @@ export default function EventGraph() {
           | OwnershipTransferredEvent;
 
         const response = await graphqlClient.request<EventResponse<EventType>>(query);
+        
+        // Add debugging logs
+        console.log('Selected Event:', selectedEvent);
+        console.log('Response:', response);
+        console.log('Response key data:', response[key]);
 
-        console.log(`API ${selectedEvent}:`, response[key]);
-
-        // Ensure response is valid
         if (!response[key] || !Array.isArray(response[key])) {
           console.error(`Invalid response for ${selectedEvent}:`, response);
           return;
         }
 
-        // Calculate timestamps for the last 24 hours
-        const twentyFourHoursAgo = new Date();
-        twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
+        // Calculate start time based on selected time range
+        const startDate = new Date();
+        if (timeRange === 'week') {
+          startDate.setDate(startDate.getDate() - 7);
+        } else if (timeRange === 'month') {
+          startDate.setMonth(startDate.getMonth() - 1);
+        } else {
+          startDate.setHours(startDate.getHours() - 24);
+        }
 
         const counts: Record<string, number> = {};
-        for (let i = 0; i < 24; i++) {
-          const date = new Date(twentyFourHoursAgo);
-          date.setHours(date.getHours() + i);
-          const timestamp = `${date.getDate()}-${date.toLocaleString("default", { month: "short" })} ${date.getHours().toString().padStart(2, "0")}:00`;
-          counts[timestamp] = 0;
+        
+        // Initialize counts based on time range
+        if (timeRange === 'day') {
+          // Hourly intervals for day view
+          for (let i = 0; i < 24; i++) {
+            const date = new Date(startDate);
+            date.setHours(date.getHours() + i);
+            const timestamp = `${date.getDate()}-${date.toLocaleString("default", { month: "short" })} ${date.getHours().toString().padStart(2, "0")}:00`;
+            counts[timestamp] = 0;
+          }
+        } else {
+          // Daily intervals for week/month view
+          const days = timeRange === 'week' ? 7 : 30;
+          for (let i = 0; i < days; i++) {
+            const date = new Date(startDate);
+            date.setDate(date.getDate() + i);
+            const timestamp = `${date.getDate()}-${date.toLocaleString("default", { month: "short" })}`;
+            counts[timestamp] = 0;
+          }
         }
 
         // Aggregate data based on timestamp
         response[key].forEach((event: EventType) => {
           const date = new Date(event.db_write_timestamp);
-          if (date >= twentyFourHoursAgo) {
-            const timestamp = `${date.getDate()}-${date.toLocaleString("default", { month: "short" })} ${date.getHours().toString().padStart(2, "0")}:00`;
+          if (date >= startDate) {
+            let timestamp;
+            if (timeRange === 'day') {
+              timestamp = `${date.getDate()}-${date.toLocaleString("default", { month: "short" })} ${date.getHours().toString().padStart(2, "0")}:00`;
+            } else {
+              timestamp = `${date.getDate()}-${date.toLocaleString("default", { month: "short" })}`;
+            }
             if (counts[timestamp] !== undefined) {
               counts[timestamp] += 1;
             }
@@ -179,7 +205,7 @@ export default function EventGraph() {
     };
 
     fetchData();
-  }, [selectedEvent]);
+  }, [selectedEvent, timeRange]); // Add timeRange to dependencies
 
   // Transform the data for Recharts
   const chartData = Object.entries(dailyCounts)
@@ -208,6 +234,8 @@ export default function EventGraph() {
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           <span style={{ fontSize: '14px', color: '#666' }}>Time Range:</span>
           <select 
+            value={timeRange}
+            onChange={(e) => setTimeRange(e.target.value as 'day' | 'week' | 'month')}
             style={{
               padding: '8px 12px',
               borderRadius: '6px',
