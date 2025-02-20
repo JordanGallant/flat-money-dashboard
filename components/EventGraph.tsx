@@ -10,7 +10,6 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from "recharts";
-import { FaGithub } from "react-icons/fa";
 import BottomDiv from "./BottomDiv";
 
 
