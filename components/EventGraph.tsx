@@ -415,26 +415,22 @@ export default function EventGraph() {
 
   // Transform the data for Recharts with reversed order for all time ranges
   const chartData = Object.entries(eventCounts)
-    .map(([timeLabel, count]) => {
-      const date = new Date(timeLabel);
-      const currentHour = new Date().getHours();
-      
-      // Calculate how many hours to shift based on current time
-      // This will make the current hour appear rightmost
-      const hoursToShift = (24 - currentHour) % 24;
-      
-      const shiftedTimestamp = new Date(date.getTime());
-      shiftedTimestamp.setHours((date.getHours() + hoursToShift) % 24);
-      
-      return {
-        timeLabel,
+    .map(([timeLabel, count]) => ({
+      timeLabel,
+      count: timeRange === "day" ? 
+        (new Date(timeLabel).getHours() > new Date().getHours() ? 0 : count) : 
         count,
-        timestamp: shiftedTimestamp.getTime(),
-      };
-    })
+      hour: timeRange === "day" ? 
+        (new Date(timeLabel).getHours() + 1) % 24 : 
+        new Date(timeLabel).getTime(),
+    }))
     .sort((a, b) => {
       if (timeRange === "day") {
-        return b.timestamp - a.timestamp;
+        const currentHour = (new Date().getHours() + 1) % 24;
+        const hourA = (a.hour - currentHour + 24) % 24;
+        const hourB = (b.hour - currentHour + 24) % 24;
+        // Invert the sort order for daily view
+        return hourA - hourB;
       } else {
         return new Date(a.timeLabel).getTime() - new Date(b.timeLabel).getTime();
       }
@@ -443,21 +439,37 @@ export default function EventGraph() {
   const previousChartData = Object.entries(previousEventCounts)
     .map(([timeLabel, count]) => ({
       timeLabel,
-      previousCount: count,
+      previousCount: timeRange === "day" ? 
+        (new Date(timeLabel).getHours() > new Date().getHours() ? 0 : count) : 
+        count,
+      hour: timeRange === "day" ? 
+        (new Date(timeLabel).getHours() + 1) % 24 : 
+        new Date(timeLabel).getTime(),
     }))
     .sort((a, b) => {
       if (timeRange === "day") {
-        return parseInt(a.timeLabel) - parseInt(b.timeLabel);
+        const currentHour = (new Date().getHours() + 1) % 24;
+        const hourA = (a.hour - currentHour + 24) % 24;
+        const hourB = (b.hour - currentHour + 24) % 24;
+        // Invert the sort order for daily view
+        return hourA - hourB;
+      } else {
+        return new Date(a.timeLabel).getTime() - new Date(b.timeLabel).getTime();
       }
-      return new Date(a.timeLabel).getTime() - new Date(b.timeLabel).getTime();
     });
 
-  // Merge current and previous data by aligning the indices and reversing both periods
-  const mergedChartData = chartData.map((current, index) => ({
-    timeLabel: current.timeLabel,
-    count: chartData[chartData.length - 1 - index].count,
-    previousCount: previousChartData[previousChartData.length - 1 - index]?.previousCount || 0,
-  }));
+  // Merge current and previous data
+  const mergedChartData = timeRange === "day" 
+    ? chartData.map((current, index) => ({
+        timeLabel: current.timeLabel,
+        count: current.count,
+        previousCount: previousChartData[index]?.previousCount || 0,
+      }))
+    : chartData.map((current, index) => ({
+        timeLabel: current.timeLabel,
+        count: chartData[chartData.length - 1 - index].count,
+        previousCount: previousChartData[previousChartData.length - 1 - index]?.previousCount || 0,
+      }));
 
   return (
     <div>
