@@ -373,10 +373,8 @@ export default function EventGraph() {
         const hourB = parseInt(b.timeLabel);
         return hourA - hourB;
       } else {
-        // For week and month views, sort by date in descending order
-        return (
-          new Date(b.timeLabel).getTime() - new Date(a.timeLabel).getTime()
-        );
+        // For week and month views, sort by date in ascending order
+        return new Date(a.timeLabel).getTime() - new Date(b.timeLabel).getTime();
       }
     });
 
@@ -389,13 +387,14 @@ export default function EventGraph() {
       if (timeRange === "day") {
         return parseInt(a.timeLabel) - parseInt(b.timeLabel);
       }
-      return new Date(b.timeLabel).getTime() - new Date(a.timeLabel).getTime();
+      return new Date(a.timeLabel).getTime() - new Date(b.timeLabel).getTime();
     });
 
-  // Merge current and previous data
+  // Merge current and previous data by aligning the indices and reversing both periods
   const mergedChartData = chartData.map((current, index) => ({
-    ...current,
-    previousCount: previousChartData[index]?.previousCount || 0,
+    timeLabel: current.timeLabel,
+    count: chartData[chartData.length - 1 - index].count,
+    previousCount: previousChartData[previousChartData.length - 1 - index]?.previousCount || 0,
   }));
 
   return (
@@ -590,9 +589,6 @@ export default function EventGraph() {
             <Tooltip
               content={({ active, payload, label }) => {
                 if (active && payload && payload.length > 0) {
-                  const currentPeriod = payload.find(p => p.dataKey === "count");
-                  const previousPeriod = payload.find(p => p.dataKey === "previousCount");
-                  
                   return (
                     <div style={{ 
                       backgroundColor: 'white', 
@@ -601,11 +597,9 @@ export default function EventGraph() {
                       borderRadius: '4px'
                     }}>
                       <p>{timeRange === "day" ? `Hour: ${label}` : `Date: ${label}`}</p>
-                      {currentPeriod && (
-                        <p style={{ color: "#FF8C00" }}>Current Period: {currentPeriod.value}</p>
-                      )}
-                      {previousPeriod && (
-                        <p style={{ color: "#FF8C00" }}>Previous Period: {previousPeriod.value}</p>
+                      <p style={{ color: '#FF8C00' }}>Current Period: {payload[0].value}</p>
+                      {showPreviousPeriod && (
+                        <p style={{ color: '#FF8C00' }}>Previous Period: {payload[1]?.value || 0}</p>
                       )}
                     </div>
                   );
@@ -624,8 +618,8 @@ export default function EventGraph() {
                 type="monotone"
                 dataKey="previousCount"
                 stroke="#FF8C00"
+                strokeDasharray="5 5"
                 name="Previous Period"
-                strokeDasharray="5 5" 
               />
             )}
           </LineChart>
