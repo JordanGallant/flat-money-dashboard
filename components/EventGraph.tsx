@@ -8,8 +8,10 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
+  ReferenceLine,
 } from "recharts";
 import { FaGithub } from "react-icons/fa";
+import BottomDiv from "./BottomDiv";
 
 
 
@@ -119,8 +121,16 @@ export default function EventGraph() {
 
         // When a specific date is selected, calculate start and end timestamps for that day
         const selectedDateTime = new Date(selectedDate);
+        selectedDateTime.setHours(0, 0, 0, 0); // Set to start of day
         const startOfDay = Math.floor(selectedDateTime.getTime() / 1000);
         const endOfDay = startOfDay + (24 * 60 * 60);
+
+        // Calculate previous day timestamps by subtracting one day from the selected date
+        const previousDateTime = new Date(selectedDate);
+        previousDateTime.setDate(previousDateTime.getDate() - 1);
+        previousDateTime.setHours(0, 0, 0, 0); // Set to start of day
+        const previousStartOfDay = Math.floor(previousDateTime.getTime() / 1000);
+        const previousEndOfDay = previousStartOfDay + (24 * 60 * 60);
 
         // Modify the query to use selected date range when a date is selected
         const currentQuery = timeRange === "day" && selectedDate ? {
@@ -172,7 +182,24 @@ export default function EventGraph() {
             ? oneWeekAgo
             : oneMonthAgo;
 
-        const previousQuery = {
+        // Modify previous period query to use previous day when date is selected
+        const previousQuery = timeRange === "day" && selectedDate ? {
+          query: `
+            query Events {
+              raw_events(
+                where: {
+                  event_name: {_eq: "${selectedEvent}"}, 
+                  block_timestamp: {_gte: ${previousStartOfDay}, _lt: ${previousEndOfDay}}
+                }
+                order_by: {block_timestamp: asc}
+              ) {
+                block_timestamp
+                event_name
+              }
+            }
+          `,
+          key: "raw_events",
+        } : {
           query: `
             query Events {
               raw_events(
@@ -213,22 +240,22 @@ export default function EventGraph() {
             const hourStr = date.toLocaleString("en-US", {
               day: "numeric",
               month: "short",
-              hour: "2-digit",
-              hour12: false,
+              hour: "numeric",
+              hour12: true,
             });
             counts[hourStr] = 0;
           }
+          
 
-          // Initialize previous perio hours
-          for (let i = 23; i >= 0; i--) {
-            const date = new Date(
-              (now - 24 * 60 * 60) * 1000 - i * 60 * 60 * 1000
-            );
+          // Initialize previous day's hours
+          for (let i = 0; i < 24; i++) {
+            const date = new Date(previousDateTime);
+            date.setHours(i, 0, 0, 0);
             const hourStr = date.toLocaleString("en-US", {
               day: "numeric",
               month: "short",
-              hour: "2-digit",
-              hour12: false,
+              hour: "numeric",
+              hour12: true,
             });
             previousCounts[hourStr] = 0;
           }
@@ -239,8 +266,8 @@ export default function EventGraph() {
             const hourStr = date.toLocaleString("en-US", {
               day: "numeric",
               month: "short",
-              hour: "2-digit",
-              hour12: false,
+              hour: "numeric",
+              hour12: true,
             });
             if (counts[hourStr] !== undefined) {
               counts[hourStr] += 1;
@@ -252,8 +279,8 @@ export default function EventGraph() {
             const hourStr = date.toLocaleString("en-US", {
               day: "numeric",
               month: "short",
-              hour: "2-digit",
-              hour12: false,
+              hour: "numeric",
+              hour12: true,
             });
             if (previousCounts[hourStr] !== undefined) {
               previousCounts[hourStr] += 1;
@@ -388,18 +415,27 @@ export default function EventGraph() {
 
   // Transform the data for Recharts with reversed order for all time ranges
   const chartData = Object.entries(eventCounts)
-    .map(([timeLabel, count]) => ({
-      timeLabel,
-      count,
-    }))
+    .map(([timeLabel, count]) => {
+      const date = new Date(timeLabel);
+      const currentHour = new Date().getHours();
+      
+      // Calculate how many hours to shift based on current time
+      // This will make the current hour appear rightmost
+      const hoursToShift = (24 - currentHour) % 24;
+      
+      const shiftedTimestamp = new Date(date.getTime());
+      shiftedTimestamp.setHours((date.getHours() + hoursToShift) % 24);
+      
+      return {
+        timeLabel,
+        count,
+        timestamp: shiftedTimestamp.getTime(),
+      };
+    })
     .sort((a, b) => {
       if (timeRange === "day") {
-        // Convert hour strings to numbers for proper sorting
-        const hourA = parseInt(a.timeLabel);
-        const hourB = parseInt(b.timeLabel);
-        return hourA - hourB;
+        return b.timestamp - a.timestamp;
       } else {
-        // For week and month views, sort by date in ascending order
         return new Date(a.timeLabel).getTime() - new Date(b.timeLabel).getTime();
       }
     });
@@ -654,6 +690,24 @@ export default function EventGraph() {
               tick={{ fontSize: 12 }}
             />
             <YAxis />
+            {timeRange === "day" && (
+              <ReferenceLine
+                x={new Date().toLocaleString("en-US", {
+                  day: "numeric",
+                  month: "short",
+                  hour: "numeric",
+                  hour12: true,
+                })}
+                stroke="#666"
+                strokeDasharray="3 3"
+                label={{
+                  value: "Current Time",
+                  position: "top",
+                  fill: "#666",
+                  fontSize: 12
+                }}
+              />
+            )}
             <Tooltip
               content={({ active, payload, label }) => {
                 if (active && payload && payload.length > 0) {
@@ -693,43 +747,7 @@ export default function EventGraph() {
           </LineChart>
         </ResponsiveContainer>
       </div>
-      <div
-        style={{
-          textAlign: "center",
-          marginTop: "20px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "8px",
-        }}
-      >
-        <span>Powered by </span>
-        <div style={{ display: "inline-flex", alignItems: "center" }}>
-          <a
-            href="https://envio.dev/app/JordanGallant/silo-envio-demo-indexer"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ textDecoration: "underline" }}
-          >
-            HyperIndex
-          </a>
-          <p style={{ margin: "0 4px" }}>on</p>
-          <a
-            href="https://envio.dev"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <img
-              src="https://d30nibem0g3f7u.cloudfront.net/Envio-Logo.png"
-              alt="Envio Logo"
-              style={{ height: "20px", marginRight: "4px" }}
-            />
-          </a>
-        </div>
-        <a href="https://github.com/JordanGallant/event-density-template/tree/main" target="_blank" rel="noopener noreferrer">
-          <FaGithub />
-        </a>
-      </div>
+      <BottomDiv />
     </div>
   );
 }
