@@ -468,6 +468,26 @@ export default function EventGraph() {
               {(() => {
                 const currentTotal = Object.values(eventCounts).reduce((sum, count) => sum + count, 0);
                 const previousTotal = Object.values(previousEventCounts).reduce((sum, count) => sum + count, 0);
+                
+                // If both periods have all zeros, return 0%
+                if (currentTotal === 0 && previousTotal === 0) {
+                  return (
+                    <>
+                      <div style={{ 
+                        fontSize: "24px", 
+                        fontWeight: "bold", 
+                        color: "#6c757d",  // grey color
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px"
+                      }}>
+                        0%
+                      </div>
+                      <div style={{ fontSize: "12px", color: "#6c757d" }}>change</div>
+                    </>
+                  );
+                }
+
                 const percentageChange = previousTotal === 0 
                   ? 100 
                   : ((currentTotal - previousTotal) / previousTotal) * 100;
