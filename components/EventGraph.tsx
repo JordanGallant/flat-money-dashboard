@@ -206,13 +206,10 @@ export default function EventGraph() {
         const previousCounts: Record<string, number> = {};
 
         if (timeRange === "day") {
-          // Initialize hours starting from current hour and going back 24 hours
-          const currentHour = new Date().getHours();
-          for (let i = 23; i >= 0; i--) {
+          // Initialize hours for selected date
+          for (let i = 0; i < 24; i++) {
             const date = new Date(selectedDateTime);
-            // Calculate hour by starting from current hour and going backwards
-            const hour = (currentHour - i + 24) % 24;
-            date.setHours(hour, 0, 0, 0);
+            date.setHours(i, 0, 0, 0);
             const hourStr = date.toLocaleString("en-US", {
               day: "numeric",
               month: "short",
@@ -222,11 +219,11 @@ export default function EventGraph() {
             counts[hourStr] = 0;
           }
 
-          // Initialize previous period hours
+          // Initialize previous perio hours
           for (let i = 23; i >= 0; i--) {
-            const date = new Date(Date.now() - 24 * 60 * 60 * 1000);
-            const hour = (currentHour - i + 24) % 24;
-            date.setHours(hour, 0, 0, 0);
+            const date = new Date(
+              (now - 24 * 60 * 60) * 1000 - i * 60 * 60 * 1000
+            );
             const hourStr = date.toLocaleString("en-US", {
               day: "numeric",
               month: "short",
@@ -394,15 +391,15 @@ export default function EventGraph() {
     .map(([timeLabel, count]) => ({
       timeLabel,
       count,
-      hour: parseInt(timeLabel.split(" ")[2])
     }))
     .sort((a, b) => {
       if (timeRange === "day") {
-        const currentHour = new Date().getHours();
-        const hourA = (a.hour - currentHour + 24) % 24;
-        const hourB = (b.hour - currentHour + 24) % 24;
+        // Convert hour strings to numbers for proper sorting
+        const hourA = parseInt(a.timeLabel);
+        const hourB = parseInt(b.timeLabel);
         return hourA - hourB;
       } else {
+        // For week and month views, sort by date in ascending order
         return new Date(a.timeLabel).getTime() - new Date(b.timeLabel).getTime();
       }
     });
@@ -419,11 +416,11 @@ export default function EventGraph() {
       return new Date(a.timeLabel).getTime() - new Date(b.timeLabel).getTime();
     });
 
-  // Merge current and previous data without reversing the order
+  // Merge current and previous data by aligning the indices and reversing both periods
   const mergedChartData = chartData.map((current, index) => ({
     timeLabel: current.timeLabel,
-    count: current.count, // Use the current count directly
-    previousCount: previousChartData[index]?.previousCount || 0,
+    count: chartData[chartData.length - 1 - index].count,
+    previousCount: previousChartData[previousChartData.length - 1 - index]?.previousCount || 0,
   }));
 
   return (
