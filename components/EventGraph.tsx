@@ -126,7 +126,6 @@ export default function EventGraph() {
           eventCount: currentResponse[currentQuery.key]?.length || 0
         });
 
-        // Calculate previous period timestamps
         const timeOffset =
           timeRange === "day"
             ? 24 * 60 * 60
@@ -169,11 +168,6 @@ export default function EventGraph() {
           EventResponse<TransferEvent>
         >(previousQuery.query);
 
-        console.log('Previous Period Response:', {
-          query: previousQuery,
-          response: previousResponse,
-          eventCount: previousResponse[previousQuery.key]?.length || 0
-        });
 
         if (
           !currentResponse[currentQuery.key] ||
@@ -199,7 +193,7 @@ export default function EventGraph() {
             counts[hourStr] = 0;
           }
 
-          // Initialize previous period hours
+          // Initialize previous perio hours
           for (let i = 23; i >= 0; i--) {
             const date = new Date(
               (now - 24 * 60 * 60) * 1000 - i * 60 * 60 * 1000
@@ -227,7 +221,6 @@ export default function EventGraph() {
             }
           });
 
-          // Count previous period events
           previousResponse[previousQuery.key].forEach((event: BaseEvent) => {
             const date = new Date(event.block_timestamp * 1000);
             const hourStr = date.toLocaleString("en-US", {
@@ -241,53 +234,74 @@ export default function EventGraph() {
             }
           });
         } else if (timeRange === "week") {
-          // Initialize current period days
-          for (let i = 6; i >= 0; i--) {
-            const date = new Date(now * 1000 - i * 24 * 60 * 60 * 1000);
-            const dayStr = date.toLocaleString("en-US", {
-              weekday: "short",
-              month: "short",
-              day: "numeric",
-            });
-            counts[dayStr] = 0;
-          }
+          // Create array of last 7 days with exact timestamps for comparison
+          const dates = Array.from({ length: 7 }, (_, i) => {
+            const date = new Date(now * 1000 - (6-i) * 24 * 60 * 60 * 1000);
+            // Set to start of day for consistent comparison
+            date.setHours(0, 0, 0, 0);
+            return {
+              timestamp: date.getTime(),
+              label: date.toLocaleString("en-US", {
+                weekday: "short",
+                month: "short",
+                day: "numeric",
+              })
+            };
+          }).reverse();
 
-          // Initialize previous period days
-          for (let i = 6; i >= 0; i--) {
-            const date = new Date(
-              (now - 7 * 24 * 60 * 60) * 1000 - i * 24 * 60 * 60 * 1000
-            );
-            const dayStr = date.toLocaleString("en-US", {
-              weekday: "short",
-              month: "short",
-              day: "numeric",
-            });
-            previousCounts[dayStr] = 0;
-          }
+          // Initialize counts with 0
+          dates.forEach(({ label }) => {
+            counts[label] = 0;
+          });
 
-          // Count events for both periods
+          // Count events by comparing dates at day level
           currentResponse[currentQuery.key].forEach((event: BaseEvent) => {
-            const date = new Date(event.block_timestamp * 1000);
-            const dayStr = date.toLocaleString("en-US", {
-              weekday: "short",
-              month: "short",
-              day: "numeric",
-            });
-            if (counts[dayStr] !== undefined) {
-              counts[dayStr] += 1;
+            const eventDate = new Date(event.block_timestamp * 1000);
+            eventDate.setHours(0, 0, 0, 0);
+            const eventTimestamp = eventDate.getTime();
+            
+            // Find matching date
+            const matchingDate = dates.find(d => d.timestamp === eventTimestamp);
+            if (matchingDate) {
+              counts[matchingDate.label] += 1;
             }
           });
 
+          // Do the same for previous period
+          const previousDates = Array.from({ length: 7 }, (_, i) => {
+            const date = new Date((now - 7 * 24 * 60 * 60) * 1000 - (6-i) * 24 * 60 * 60 * 1000);
+            date.setHours(0, 0, 0, 0);
+            return {
+              timestamp: date.getTime(),
+              label: date.toLocaleString("en-US", {
+                weekday: "short",
+                month: "short",
+                day: "numeric",
+              })
+            };
+          }).reverse();
+
+          previousDates.forEach(({ label }) => {
+            previousCounts[label] = 0;
+          });
+
           previousResponse[previousQuery.key].forEach((event: BaseEvent) => {
-            const date = new Date(event.block_timestamp * 1000);
-            const dayStr = date.toLocaleString("en-US", {
-              weekday: "short",
-              month: "short",
-              day: "numeric",
-            });
-            if (previousCounts[dayStr] !== undefined) {
-              previousCounts[dayStr] += 1;
+            const eventDate = new Date(event.block_timestamp * 1000);
+            eventDate.setHours(0, 0, 0, 0);
+            const eventTimestamp = eventDate.getTime();
+            
+            const matchingDate = previousDates.find(d => d.timestamp === eventTimestamp);
+            if (matchingDate) {
+              previousCounts[matchingDate.label] += 1;
             }
+          });
+
+          // Add debug logging
+          console.log('Weekly Data Debug:', {
+            dates: dates.map(d => ({ ...d, count: counts[d.label] })),
+            totalEvents: currentResponse[currentQuery.key].length,
+            mappedEvents: Object.values(counts).reduce((sum, count) => sum + count, 0),
+            rawCounts: counts
           });
         } else {
           // Month view
@@ -301,7 +315,6 @@ export default function EventGraph() {
             counts[dayStr] = 0;
           }
 
-          // Initialize previous period days
           for (let i = 29; i >= 0; i--) {
             const date = new Date(
               (now - 30 * 24 * 60 * 60) * 1000 - i * 24 * 60 * 60 * 1000
@@ -367,7 +380,6 @@ export default function EventGraph() {
       }
     });
 
-  // Add previous period data transformation
   const previousChartData = Object.entries(previousEventCounts)
     .map(([timeLabel, count]) => ({
       timeLabel,
@@ -576,13 +588,30 @@ export default function EventGraph() {
             />
             <YAxis />
             <Tooltip
-              formatter={(value: number, name: string) => [
-                value,
-                name === "count" ? "Current Period" : "Previous Period",
-              ]}
-              labelFormatter={(label) =>
-                timeRange === "day" ? `Hour: ${label}` : `Date: ${label}`
-              }
+              content={({ active, payload, label }) => {
+                if (active && payload && payload.length > 0) {
+                  const currentPeriod = payload.find(p => p.dataKey === "count");
+                  const previousPeriod = payload.find(p => p.dataKey === "previousCount");
+                  
+                  return (
+                    <div style={{ 
+                      backgroundColor: 'white', 
+                      padding: '10px', 
+                      border: '1px solid #ccc',
+                      borderRadius: '4px'
+                    }}>
+                      <p>{timeRange === "day" ? `Hour: ${label}` : `Date: ${label}`}</p>
+                      {currentPeriod && (
+                        <p style={{ color: "#FF8C00" }}>Current Period: {currentPeriod.value}</p>
+                      )}
+                      {previousPeriod && (
+                        <p style={{ color: "#FF8C00" }}>Previous Period: {previousPeriod.value}</p>
+                      )}
+                    </div>
+                  );
+                }
+                return null;
+              }}
             />
             <Line
               type="monotone"
@@ -592,12 +621,12 @@ export default function EventGraph() {
             />
             {showPreviousPeriod && (
               <Line
-              type="monotone"
-              dataKey="previousCount"
-              stroke="#FF8C00"
-              name="Previous Period"
-              strokeDasharray="5 5" 
-            />
+                type="monotone"
+                dataKey="previousCount"
+                stroke="#FF8C00"
+                name="Previous Period"
+                strokeDasharray="5 5" 
+              />
             )}
           </LineChart>
         </ResponsiveContainer>
