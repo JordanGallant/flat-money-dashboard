@@ -21,15 +21,10 @@ interface BaseEvent {
   event_name: string;
 }
 
-interface TransferEvent extends BaseEvent {
-  value: string;
-  from: string;
-  to: string;
+// Add a type for the GraphQL response
+interface EventsResponse {
+  raw_events: BaseEvent[];
 }
-
-type EventResponse<T> = {
-  [key: string]: T[];
-};
 
 // Calculate timestamps for different time ranges
 const now = Math.floor(Date.now() / 1000);
@@ -45,33 +40,6 @@ const eventTypes = [
   { value: "DelegateVotesChanged", label: "Delegate Votes Changed Events" },
   { value: "OwnershipTransferred", label: "Ownership Transferred Events" },
 ];
-
-const getQueryForTimeRange = (timeRange: string, eventType: string) => {
-  const startTime =
-    timeRange === "day"
-      ? oneDayAgo
-      : timeRange === "week"
-      ? oneWeekAgo
-      : oneMonthAgo;
-
-  return {
-    query: `
-      query Events {
-        raw_events(
-          where: {
-            event_name: {_eq: "${eventType}"}, 
-            block_timestamp: {_gte: ${startTime}}
-          }
-          order_by: {block_timestamp: asc}
-        ) {
-          block_timestamp
-          event_name
-        }
-      }
-    `,
-    key: "raw_events",
-  };
-};
 
 export default function EventGraph() {
   const [eventCounts, setEventCounts] = useState<Record<string, number>>({});
@@ -89,144 +57,80 @@ export default function EventGraph() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Add query for total events across all types
+        // Function to fetch events with pagination
+        const fetchEventsWithPagination = async (query: string, startTime: number, endTime?: number) => {
+          let allEvents: BaseEvent[] = [];
+          let offset = 0;
+          let hasMore = true;
 
-    
+          while (hasMore) {
+            const paginatedQuery = `
+              query Events {
+                raw_events(
+                  where: {
+                    event_name: {_eq: "${selectedEvent}"}, 
+                    block_timestamp: {_gte: ${startTime}${endTime ? `, _lt: ${endTime}` : ''}}
+                  }
+                  order_by: {block_timestamp: asc}
+                  limit: 1000
+                  offset: ${offset}
+                ) {
+                  block_timestamp
+                  event_name
+                }
+              }
+            `;
+
+            const response = await graphqlClient.request<EventsResponse>(paginatedQuery);
+            const events = response.raw_events || [];
+
+            allEvents = [...allEvents, ...events];
+
+            if (events.length < 1000) {
+              hasMore = false;
+            } else {
+              offset += 1000;
+            }
+          }
+
+          return allEvents;
+        };
 
         // Add query for last 30 minutes
         const thirtyMinutesAgo = Math.floor(Date.now() / 1000) - 30 * 60;
-        const last30MinQuery = {
-          query: `
-            query RecentEvents {
-              raw_events(
-                where: {
-                  event_name: {_eq: "${selectedEvent}"}, 
-                  block_timestamp: {_gte: ${thirtyMinutesAgo}}
-                }
-              ) {
-                block_timestamp
-                event_name
-              }
-            }
-          `,
-          key: "raw_events",
-        };
-
-        const last30MinResponse = await graphqlClient.request<EventResponse<TransferEvent>>(
-          last30MinQuery.query
-        );
-        
-        setLast30MinCount(last30MinResponse[last30MinQuery.key]?.length || 0);
+        const last30MinEvents = await fetchEventsWithPagination(selectedEvent, thirtyMinutesAgo);
+        setLast30MinCount(last30MinEvents.length);
 
         // When a specific date is selected, calculate start and end timestamps for that day
         const selectedDateTime = new Date(selectedDate);
-        selectedDateTime.setHours(0, 0, 0, 0); // Set to start of day
+        selectedDateTime.setHours(0, 0, 0, 0);
         const startOfDay = Math.floor(selectedDateTime.getTime() / 1000);
         const endOfDay = startOfDay + (24 * 60 * 60);
 
-        // Calculate previous day timestamps by subtracting one day from the selected date
+        // Calculate previous day timestamps
         const previousDateTime = new Date(selectedDate);
         previousDateTime.setDate(previousDateTime.getDate() - 1);
-        previousDateTime.setHours(0, 0, 0, 0); // Set to start of day
+        previousDateTime.setHours(0, 0, 0, 0);
         const previousStartOfDay = Math.floor(previousDateTime.getTime() / 1000);
         const previousEndOfDay = previousStartOfDay + (24 * 60 * 60);
 
-        // Modify the query to use selected date range when a date is selected
-        const currentQuery = timeRange === "day" && selectedDate ? {
-          query: `
-            query Events {
-              raw_events(
-                where: {
-                  event_name: {_eq: "${selectedEvent}"}, 
-                  block_timestamp: {_gte: ${startOfDay}, _lt: ${endOfDay}}
-                }
-                order_by: {block_timestamp: asc}
-              ) {
-                block_timestamp
-                event_name
-              }
-            }
-          `,
-          key: "raw_events",
-        } : getQueryForTimeRange(timeRange, selectedEvent);
+        // Fetch current period events
+        const currentEvents = timeRange === "day" && selectedDate
+          ? await fetchEventsWithPagination(selectedEvent, startOfDay, endOfDay)
+          : await fetchEventsWithPagination(
+              selectedEvent,
+              timeRange === "day" ? oneDayAgo : timeRange === "week" ? oneWeekAgo : oneMonthAgo
+            );
 
-        const currentResponse = await graphqlClient.request<
-          EventResponse<TransferEvent>
-        >(currentQuery.query);
-        
-        console.log('Current Period Response:', {
-          query: currentQuery,
-          response: currentResponse,
-          eventCount: currentResponse[currentQuery.key]?.length || 0
-        });
-
-        const timeOffset =
-          timeRange === "day"
-            ? 24 * 60 * 60
-            : timeRange === "week"
-            ? 7 * 24 * 60 * 60
-            : 30 * 24 * 60 * 60;
-
-        const previousStartTime =
-          (timeRange === "day"
-            ? oneDayAgo
-            : timeRange === "week"
-            ? oneWeekAgo
-            : oneMonthAgo) - timeOffset;
-
-        const previousEndTime =
-          timeRange === "day"
-            ? oneDayAgo
-            : timeRange === "week"
-            ? oneWeekAgo
-            : oneMonthAgo;
-
-        // Modify previous period query to use previous day when date is selected
-        const previousQuery = timeRange === "day" && selectedDate ? {
-          query: `
-            query Events {
-              raw_events(
-                where: {
-                  event_name: {_eq: "${selectedEvent}"}, 
-                  block_timestamp: {_gte: ${previousStartOfDay}, _lt: ${previousEndOfDay}}
-                }
-                order_by: {block_timestamp: asc}
-              ) {
-                block_timestamp
-                event_name
-              }
-            }
-          `,
-          key: "raw_events",
-        } : {
-          query: `
-            query Events {
-              raw_events(
-                where: {
-                  event_name: {_eq: "${selectedEvent}"}, 
-                  block_timestamp: {_gte: ${previousStartTime}, _lt: ${previousEndTime}}
-                }
-                order_by: {block_timestamp: asc}
-              ) {
-                block_timestamp
-                event_name
-              }
-            }
-          `,
-          key: "raw_events",
-        };
-        const previousResponse = await graphqlClient.request<
-          EventResponse<TransferEvent>
-        >(previousQuery.query);
-
-
-        if (
-          !currentResponse[currentQuery.key] ||
-          !Array.isArray(currentResponse[currentQuery.key])
-        ) {
-          console.log('Invalid response format:', currentResponse);
-          return;
-        }
+        // Fetch previous period events
+        const previousEvents = timeRange === "day" && selectedDate
+          ? await fetchEventsWithPagination(selectedEvent, previousStartOfDay, previousEndOfDay)
+          : await fetchEventsWithPagination(
+              selectedEvent,
+              (timeRange === "day" ? oneDayAgo : timeRange === "week" ? oneWeekAgo : oneMonthAgo) - 
+              (timeRange === "day" ? 24 * 60 * 60 : timeRange === "week" ? 7 * 24 * 60 * 60 : 30 * 24 * 60 * 60),
+              timeRange === "day" ? oneDayAgo : timeRange === "week" ? oneWeekAgo : oneMonthAgo
+            );
 
         const counts: Record<string, number> = {};
         const previousCounts: Record<string, number> = {};
@@ -260,7 +164,7 @@ export default function EventGraph() {
           }
 
           // Count current period events
-          currentResponse[currentQuery.key].forEach((event: BaseEvent) => {
+          currentEvents.forEach((event: BaseEvent) => {
             const date = new Date(event.block_timestamp * 1000);
             const hourStr = date.toLocaleString("en-US", {
               day: "numeric",
@@ -273,7 +177,7 @@ export default function EventGraph() {
             }
           });
 
-          previousResponse[previousQuery.key].forEach((event: BaseEvent) => {
+          previousEvents.forEach((event: BaseEvent) => {
             const date = new Date(event.block_timestamp * 1000);
             const hourStr = date.toLocaleString("en-US", {
               day: "numeric",
@@ -307,7 +211,7 @@ export default function EventGraph() {
           });
 
           // Count events by comparing dates at day level
-          currentResponse[currentQuery.key].forEach((event: BaseEvent) => {
+          currentEvents.forEach((event: BaseEvent) => {
             const eventDate = new Date(event.block_timestamp * 1000);
             eventDate.setHours(0, 0, 0, 0);
             const eventTimestamp = eventDate.getTime();
@@ -337,7 +241,7 @@ export default function EventGraph() {
             previousCounts[label] = 0;
           });
 
-          previousResponse[previousQuery.key].forEach((event: BaseEvent) => {
+          previousEvents.forEach((event: BaseEvent) => {
             const eventDate = new Date(event.block_timestamp * 1000);
             eventDate.setHours(0, 0, 0, 0);
             const eventTimestamp = eventDate.getTime();
@@ -351,7 +255,7 @@ export default function EventGraph() {
           // Add debug logging
           console.log('Weekly Data Debug:', {
             dates: dates.map(d => ({ ...d, count: counts[d.label] })),
-            totalEvents: currentResponse[currentQuery.key].length,
+            totalEvents: currentEvents.length,
             mappedEvents: Object.values(counts).reduce((sum, count) => sum + count, 0),
             rawCounts: counts
           });
@@ -379,7 +283,7 @@ export default function EventGraph() {
           }
 
           // Count events for both periods
-          currentResponse[currentQuery.key].forEach((event: BaseEvent) => {
+          currentEvents.forEach((event: BaseEvent) => {
             const date = new Date(event.block_timestamp * 1000);
             const dayStr = date.toLocaleDateString("en-US", {
               day: "numeric",
@@ -390,7 +294,7 @@ export default function EventGraph() {
             }
           });
 
-          previousResponse[previousQuery.key].forEach((event: BaseEvent) => {
+          previousEvents.forEach((event: BaseEvent) => {
             const date = new Date(event.block_timestamp * 1000);
             const dayStr = date.toLocaleDateString("en-US", {
               day: "numeric",
