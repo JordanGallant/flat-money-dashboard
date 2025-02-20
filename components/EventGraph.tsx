@@ -11,10 +11,8 @@ import {
   ReferenceLine,
 } from "recharts";
 import BottomDiv from "./BottomDiv";
+import Loader from "./Loader";
 
-
-
-// Simplified to only include BaseEvent and TransferEvent
 interface BaseEvent {
   db_write_timestamp: string;
   block_timestamp: number;
@@ -51,14 +49,20 @@ export default function EventGraph() {
   const [selectedEvent, setSelectedEvent] = useState<string>("Transfer");
   const [showPreviousPeriod, setShowPreviousPeriod] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>(
-    new Date().toISOString().split('T')[0]
+    new Date().toISOString().split("T")[0]
   );
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
+      setIsLoading(true);
       try {
         // Function to fetch events with pagination
-        const fetchEventsWithPagination = async (query: string, startTime: number, endTime?: number) => {
+        const fetchEventsWithPagination = async (
+          query: string,
+          startTime: number,
+          endTime?: number
+        ) => {
           let allEvents: BaseEvent[] = [];
           let offset = 0;
           let hasMore = true;
@@ -69,7 +73,9 @@ export default function EventGraph() {
                 raw_events(
                   where: {
                     event_name: {_eq: "${selectedEvent}"}, 
-                    block_timestamp: {_gte: ${startTime}${endTime ? `, _lt: ${endTime}` : ''}}
+                    block_timestamp: {_gte: ${startTime}${
+              endTime ? `, _lt: ${endTime}` : ""
+            }}
                   }
                   order_by: {block_timestamp: asc}
                   limit: 1000
@@ -81,7 +87,9 @@ export default function EventGraph() {
               }
             `;
 
-            const response = await graphqlClient.request<EventsResponse>(paginatedQuery);
+            const response = await graphqlClient.request<EventsResponse>(
+              paginatedQuery
+            );
             const events = response.raw_events || [];
 
             allEvents = [...allEvents, ...events];
@@ -98,39 +106,70 @@ export default function EventGraph() {
 
         // Add query for last 30 minutes
         const thirtyMinutesAgo = Math.floor(Date.now() / 1000) - 30 * 60;
-        const last30MinEvents = await fetchEventsWithPagination(selectedEvent, thirtyMinutesAgo);
+        const last30MinEvents = await fetchEventsWithPagination(
+          selectedEvent,
+          thirtyMinutesAgo
+        );
         setLast30MinCount(last30MinEvents.length);
 
         // When a specific date is selected, calculate start and end timestamps for that day
         const selectedDateTime = new Date(selectedDate);
         selectedDateTime.setHours(0, 0, 0, 0);
         const startOfDay = Math.floor(selectedDateTime.getTime() / 1000);
-        const endOfDay = startOfDay + (24 * 60 * 60);
+        const endOfDay = startOfDay + 24 * 60 * 60;
 
         // Calculate previous day timestamps
         const previousDateTime = new Date(selectedDate);
         previousDateTime.setDate(previousDateTime.getDate() - 1);
         previousDateTime.setHours(0, 0, 0, 0);
-        const previousStartOfDay = Math.floor(previousDateTime.getTime() / 1000);
-        const previousEndOfDay = previousStartOfDay + (24 * 60 * 60);
+        const previousStartOfDay = Math.floor(
+          previousDateTime.getTime() / 1000
+        );
+        const previousEndOfDay = previousStartOfDay + 24 * 60 * 60;
 
         // Fetch current period events
-        const currentEvents = timeRange === "day" && selectedDate
-          ? await fetchEventsWithPagination(selectedEvent, startOfDay, endOfDay)
-          : await fetchEventsWithPagination(
-              selectedEvent,
-              timeRange === "day" ? oneDayAgo : timeRange === "week" ? oneWeekAgo : oneMonthAgo
-            );
+        const currentEvents =
+          timeRange === "day" && selectedDate
+            ? await fetchEventsWithPagination(
+                selectedEvent,
+                startOfDay,
+                endOfDay
+              )
+            : await fetchEventsWithPagination(
+                selectedEvent,
+                timeRange === "day"
+                  ? oneDayAgo
+                  : timeRange === "week"
+                  ? oneWeekAgo
+                  : oneMonthAgo
+              );
 
         // Fetch previous period events
-        const previousEvents = timeRange === "day" && selectedDate
-          ? await fetchEventsWithPagination(selectedEvent, previousStartOfDay, previousEndOfDay)
-          : await fetchEventsWithPagination(
-              selectedEvent,
-              (timeRange === "day" ? oneDayAgo : timeRange === "week" ? oneWeekAgo : oneMonthAgo) - 
-              (timeRange === "day" ? 24 * 60 * 60 : timeRange === "week" ? 7 * 24 * 60 * 60 : 30 * 24 * 60 * 60),
-              timeRange === "day" ? oneDayAgo : timeRange === "week" ? oneWeekAgo : oneMonthAgo
-            );
+        const previousEvents =
+          timeRange === "day" && selectedDate
+            ? await fetchEventsWithPagination(
+                selectedEvent,
+                previousStartOfDay,
+                previousEndOfDay
+              )
+            : await fetchEventsWithPagination(
+                selectedEvent,
+                (timeRange === "day"
+                  ? oneDayAgo
+                  : timeRange === "week"
+                  ? oneWeekAgo
+                  : oneMonthAgo) -
+                  (timeRange === "day"
+                    ? 24 * 60 * 60
+                    : timeRange === "week"
+                    ? 7 * 24 * 60 * 60
+                    : 30 * 24 * 60 * 60),
+                timeRange === "day"
+                  ? oneDayAgo
+                  : timeRange === "week"
+                  ? oneWeekAgo
+                  : oneMonthAgo
+              );
 
         const counts: Record<string, number> = {};
         const previousCounts: Record<string, number> = {};
@@ -148,7 +187,6 @@ export default function EventGraph() {
             });
             counts[hourStr] = 0;
           }
-          
 
           // Initialize previous day's hours
           for (let i = 0; i < 24; i++) {
@@ -192,7 +230,7 @@ export default function EventGraph() {
         } else if (timeRange === "week") {
           // Create array of last 7 days with exact timestamps for comparison
           const dates = Array.from({ length: 7 }, (_, i) => {
-            const date = new Date(now * 1000 - (6-i) * 24 * 60 * 60 * 1000);
+            const date = new Date(now * 1000 - (6 - i) * 24 * 60 * 60 * 1000);
             // Set to start of day for consistent comparison
             date.setHours(0, 0, 0, 0);
             return {
@@ -201,7 +239,7 @@ export default function EventGraph() {
                 weekday: "short",
                 month: "short",
                 day: "numeric",
-              })
+              }),
             };
           }).reverse();
 
@@ -215,9 +253,11 @@ export default function EventGraph() {
             const eventDate = new Date(event.block_timestamp * 1000);
             eventDate.setHours(0, 0, 0, 0);
             const eventTimestamp = eventDate.getTime();
-            
+
             // Find matching date
-            const matchingDate = dates.find(d => d.timestamp === eventTimestamp);
+            const matchingDate = dates.find(
+              (d) => d.timestamp === eventTimestamp
+            );
             if (matchingDate) {
               counts[matchingDate.label] += 1;
             }
@@ -225,7 +265,9 @@ export default function EventGraph() {
 
           // Do the same for previous period
           const previousDates = Array.from({ length: 7 }, (_, i) => {
-            const date = new Date((now - 7 * 24 * 60 * 60) * 1000 - (6-i) * 24 * 60 * 60 * 1000);
+            const date = new Date(
+              (now - 7 * 24 * 60 * 60) * 1000 - (6 - i) * 24 * 60 * 60 * 1000
+            );
             date.setHours(0, 0, 0, 0);
             return {
               timestamp: date.getTime(),
@@ -233,7 +275,7 @@ export default function EventGraph() {
                 weekday: "short",
                 month: "short",
                 day: "numeric",
-              })
+              }),
             };
           }).reverse();
 
@@ -245,19 +287,13 @@ export default function EventGraph() {
             const eventDate = new Date(event.block_timestamp * 1000);
             eventDate.setHours(0, 0, 0, 0);
             const eventTimestamp = eventDate.getTime();
-            
-            const matchingDate = previousDates.find(d => d.timestamp === eventTimestamp);
+
+            const matchingDate = previousDates.find(
+              (d) => d.timestamp === eventTimestamp
+            );
             if (matchingDate) {
               previousCounts[matchingDate.label] += 1;
             }
-          });
-
-          // Add debug logging
-          console.log('Weekly Data Debug:', {
-            dates: dates.map(d => ({ ...d, count: counts[d.label] })),
-            totalEvents: currentEvents.length,
-            mappedEvents: Object.values(counts).reduce((sum, count) => sum + count, 0),
-            rawCounts: counts
           });
         } else {
           // Month view
@@ -310,6 +346,8 @@ export default function EventGraph() {
         setEventCounts(counts);
       } catch (error) {
         console.error("Error fetching data:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -320,12 +358,16 @@ export default function EventGraph() {
   const chartData = Object.entries(eventCounts)
     .map(([timeLabel, count]) => ({
       timeLabel,
-      count: timeRange === "day" ? 
-        (new Date(timeLabel).getHours() > new Date().getHours() ? 0 : count) : 
-        count,
-      hour: timeRange === "day" ? 
-        (new Date(timeLabel).getHours() + 1) % 24 : 
-        new Date(timeLabel).getTime(),
+      count:
+        timeRange === "day"
+          ? new Date(timeLabel).getHours() > new Date().getHours()
+            ? 0
+            : count
+          : count,
+      hour:
+        timeRange === "day"
+          ? (new Date(timeLabel).getHours() + 1) % 24
+          : new Date(timeLabel).getTime(),
     }))
     .sort((a, b) => {
       if (timeRange === "day") {
@@ -335,19 +377,25 @@ export default function EventGraph() {
         // Invert the sort order for daily view
         return hourA - hourB;
       } else {
-        return new Date(a.timeLabel).getTime() - new Date(b.timeLabel).getTime();
+        return (
+          new Date(a.timeLabel).getTime() - new Date(b.timeLabel).getTime()
+        );
       }
     });
 
   const previousChartData = Object.entries(previousEventCounts)
     .map(([timeLabel, count]) => ({
       timeLabel,
-      previousCount: timeRange === "day" ? 
-        (new Date(timeLabel).getHours() > new Date().getHours() ? 0 : count) : 
-        count,
-      hour: timeRange === "day" ? 
-        (new Date(timeLabel).getHours() + 1) % 24 : 
-        new Date(timeLabel).getTime(),
+      previousCount:
+        timeRange === "day"
+          ? new Date(timeLabel).getHours() > new Date().getHours()
+            ? 0
+            : count
+          : count,
+      hour:
+        timeRange === "day"
+          ? (new Date(timeLabel).getHours() + 1) % 24
+          : new Date(timeLabel).getTime(),
     }))
     .sort((a, b) => {
       if (timeRange === "day") {
@@ -357,22 +405,27 @@ export default function EventGraph() {
         // Invert the sort order for daily view
         return hourA - hourB;
       } else {
-        return new Date(a.timeLabel).getTime() - new Date(b.timeLabel).getTime();
+        return (
+          new Date(a.timeLabel).getTime() - new Date(b.timeLabel).getTime()
+        );
       }
     });
 
   // Merge current and previous data
-  const mergedChartData = timeRange === "day" 
-    ? chartData.map((current, index) => ({
-        timeLabel: current.timeLabel,
-        count: current.count,
-        previousCount: previousChartData[index]?.previousCount || 0,
-      }))
-    : chartData.map((current, index) => ({
-        timeLabel: current.timeLabel,
-        count: chartData[chartData.length - 1 - index].count,
-        previousCount: previousChartData[previousChartData.length - 1 - index]?.previousCount || 0,
-      }));
+  const mergedChartData =
+    timeRange === "day"
+      ? chartData.map((current, index) => ({
+          timeLabel: current.timeLabel,
+          count: current.count,
+          previousCount: previousChartData[index]?.previousCount || 0,
+        }))
+      : chartData.map((current, index) => ({
+          timeLabel: current.timeLabel,
+          count: chartData[chartData.length - 1 - index].count,
+          previousCount:
+            previousChartData[previousChartData.length - 1 - index]
+              ?.previousCount || 0,
+        }));
 
   return (
     <div>
@@ -386,107 +439,175 @@ export default function EventGraph() {
           boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
         }}
       >
-        <h1 style={{ fontSize: "24px", fontWeight: "600", color: "#333", marginBottom: "16px" }}>
-          {selectedEvent} Events
-        </h1>
-        
-        <div style={{ 
-          display: "grid", 
-          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
-          gap: "16px",
-          marginBottom: "16px" 
-        }}>
+        <div style={{ textAlign: "center", marginBottom: "16px" }}>
+          <h1
+            style={{
+              fontSize: "24px",
+              fontWeight: "600",
+              color: "#333",
+            }}
+          >
+            Silo Event Dashboard -{" "}
+            <a href="https://etherscan.io/address/0x6f80310CA7F2C654691D1383149Fa1A57d8AB1f8">
+              0x6f80310CA7F2C654691D1383149Fa1A57d8AB1f8
+            </a>
+          </h1>
+          
+          <p>
+            
+            Your ultimate analytics dashboard for smarter decisions! 🚀📊
+          </p>
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+            gap: "16px",
+            marginBottom: "16px",
+          }}
+        >
           {/* Last 30min Stats */}
-          <div style={{
-            padding: "16px",
-            borderRadius: "8px",
-            backgroundColor: "#f8f9fa",
-            border: "1px solid #e9ecef",
-            boxShadow: "0 2px 4px rgba(0,0,0,0.05)"
-          }}>
-            <div style={{ fontSize: "14px", color: "#6c757d", marginBottom: "4px" }}>
+          <div
+            style={{
+              padding: "16px",
+              borderRadius: "8px",
+              backgroundColor: "#f8f9fa",
+              border: "1px solid #e9ecef",
+              boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "14px",
+                color: "#6c757d",
+                marginBottom: "4px",
+              }}
+            >
               Last 30 Minutes
             </div>
-            <div style={{ fontSize: "24px", fontWeight: "bold", color: "#FF8C00" }}>
+            <div
+              style={{ fontSize: "24px", fontWeight: "bold", color: "#FF8C00" }}
+            >
               {last30MinCount}
             </div>
             <div style={{ fontSize: "12px", color: "#6c757d" }}>events</div>
           </div>
 
           {/* Current Period Stats */}
-          <div style={{
-            padding: "16px",
-            borderRadius: "8px",
-            backgroundColor: "#f8f9fa",
-            border: "1px solid #e9ecef",
-            boxShadow: "0 2px 4px rgba(0,0,0,0.05)"
-          }}>
-            <div style={{ fontSize: "14px", color: "#6c757d", marginBottom: "4px" }}>
-              {selectedEvent} Events
-            </div>
-            <div style={{ fontSize: "24px", fontWeight: "bold", color: "#FF8C00" }}>
-              {Object.values(eventCounts).reduce((sum, count) => sum + count, 0)}
-            </div>
-            <div style={{ fontSize: "12px", color: "#6c757d" }}>current period</div>
-          </div>
-
-          {/* Percentage Change Stats */}
-          {showPreviousPeriod && (
-            <div style={{
+          <div
+            style={{
               padding: "16px",
               borderRadius: "8px",
               backgroundColor: "#f8f9fa",
               border: "1px solid #e9ecef",
-              boxShadow: "0 2px 4px rgba(0,0,0,0.05)"
-            }}>
-              <div style={{ fontSize: "14px", color: "#6c757d", marginBottom: "4px" }}>
+              boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "14px",
+                color: "#6c757d",
+                marginBottom: "4px",
+              }}
+            >
+              {selectedEvent} Events
+            </div>
+            <div
+              style={{ fontSize: "24px", fontWeight: "bold", color: "#FF8C00" }}
+            >
+              {Object.values(eventCounts).reduce(
+                (sum, count) => sum + count,
+                0
+              )}
+            </div>
+            <div style={{ fontSize: "12px", color: "#6c757d" }}>
+              current period
+            </div>
+          </div>
+
+          {/* Percentage Change Stats */}
+          {showPreviousPeriod && (
+            <div
+              style={{
+                padding: "16px",
+                borderRadius: "8px",
+                backgroundColor: "#f8f9fa",
+                border: "1px solid #e9ecef",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "14px",
+                  color: "#6c757d",
+                  marginBottom: "4px",
+                }}
+              >
                 Period over Period
               </div>
               {(() => {
-                const currentTotal = Object.values(eventCounts).reduce((sum, count) => sum + count, 0);
-                const previousTotal = Object.values(previousEventCounts).reduce((sum, count) => sum + count, 0);
-                
+                const currentTotal = Object.values(eventCounts).reduce(
+                  (sum, count) => sum + count,
+                  0
+                );
+                const previousTotal = Object.values(previousEventCounts).reduce(
+                  (sum, count) => sum + count,
+                  0
+                );
+
                 // If both periods have all zeros, return 0%
                 if (currentTotal === 0 && previousTotal === 0) {
                   return (
                     <>
-                      <div style={{ 
-                        fontSize: "24px", 
-                        fontWeight: "bold", 
-                        color: "#6c757d",  // grey color
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "4px"
-                      }}>
+                      <div
+                        style={{
+                          fontSize: "24px",
+                          fontWeight: "bold",
+                          color: "#6c757d", // grey color
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "4px",
+                        }}
+                      >
                         0%
                       </div>
-                      <div style={{ fontSize: "12px", color: "#6c757d" }}>change</div>
+                      <div style={{ fontSize: "12px", color: "#6c757d" }}>
+                        change
+                      </div>
                     </>
                   );
                 }
 
-                const percentageChange = previousTotal === 0 
-                  ? 100 
-                  : ((currentTotal - previousTotal) / previousTotal) * 100;
+                const percentageChange =
+                  previousTotal === 0
+                    ? 100
+                    : ((currentTotal - previousTotal) / previousTotal) * 100;
                 const isPositive = percentageChange > 0;
-                
+
                 return (
                   <>
-                    <div style={{ 
-                      fontSize: "24px", 
-                      fontWeight: "bold", 
-                      color: isPositive ? "#22c55e" : "#ef4444",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "4px"
-                    }}>
-                      {isPositive ? "+" : ""}{percentageChange.toFixed(1)}%
-                      {isPositive 
-                        ? <span style={{ fontSize: "20px" }}>↑</span>
-                        : <span style={{ fontSize: "20px" }}>↓</span>
-                      }
+                    <div
+                      style={{
+                        fontSize: "24px",
+                        fontWeight: "bold",
+                        color: isPositive ? "#22c55e" : "#ef4444",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                    >
+                      {isPositive ? "+" : ""}
+                      {percentageChange.toFixed(1)}%
+                      {isPositive ? (
+                        <span style={{ fontSize: "20px" }}>↑</span>
+                      ) : (
+                        <span style={{ fontSize: "20px" }}>↓</span>
+                      )}
                     </div>
-                    <div style={{ fontSize: "12px", color: "#6c757d" }}>change</div>
+                    <div style={{ fontSize: "12px", color: "#6c757d" }}>
+                      change
+                    </div>
                   </>
                 );
               })()}
@@ -494,7 +615,14 @@ export default function EventGraph() {
           )}
         </div>
 
-        <div style={{ display: "flex", gap: "12px", alignItems: "center", justifyContent: "flex-end" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: "12px",
+            alignItems: "center",
+            justifyContent: "flex-end",
+          }}
+        >
           <span style={{ fontSize: "14px", color: "#666" }}>Event Type:</span>
           <select
             value={selectedEvent}
@@ -574,95 +702,178 @@ export default function EventGraph() {
             padding: "8px",
             borderRadius: "6px",
             transition: "all 0.2s ease",
-            marginTop: "12px"
+            marginTop: "12px",
           }}
         >
           <input
             type="checkbox"
             checked={showPreviousPeriod}
             onChange={(e) => setShowPreviousPeriod(e.target.checked)}
-            style={{ 
+            style={{
               cursor: "pointer",
-              accentColor: "#FF8C00"
+              accentColor: "#FF8C00",
             }}
           />
           Compare with Previous Period
         </label>
       </div>
-
+      <div style={{ textAlign: "center", marginBottom: "16px" }}>
+        <h1
+          style={{
+            fontSize: "24px",
+            fontWeight: "600",
+            color: "#333",
+          }}
+        >
+          {selectedEvent} Events
+        </h1>
+        <p>
+          View the number of{" "}
+          <span style={{ color: "#FF8C00" }}>{selectedEvent}</span> events over
+          time.
+        </p>
+      </div>
       <div style={{ width: "100%", height: 400 }}>
-        <ResponsiveContainer>
-          <LineChart
-            data={mergedChartData}
-            margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+        {isLoading ? (
+          <div
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+            }}
           >
-            <XAxis
-              dataKey="timeLabel"
-              angle={-45}
-              textAnchor="end"
-              height={80}
-              interval={0}
-              tick={{ fontSize: 12 }}
-            />
-            <YAxis />
-            {timeRange === "day" && (
-              <ReferenceLine
-                x={new Date().toLocaleString("en-US", {
-                  day: "numeric",
-                  month: "short",
-                  hour: "numeric",
-                  hour12: true,
-                })}
-                stroke="#666"
-                strokeDasharray="3 3"
-                label={{
-                  value: "Current Time",
-                  position: "top",
-                  fill: "#666",
-                  fontSize: 12
+            <Loader />
+          </div>
+        ) : (
+          <ResponsiveContainer>
+            <LineChart
+              data={mergedChartData}
+              margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+            >
+              <XAxis
+                dataKey="timeLabel"
+                angle={-45}
+                textAnchor="end"
+                height={80}
+                interval={0}
+                tick={{ fontSize: 12 }}
+              />
+              <YAxis />
+              {timeRange === "day" && (
+                <ReferenceLine
+                  x={new Date().toLocaleString("en-US", {
+                    day: "numeric",
+                    month: "short",
+                    hour: "numeric",
+                    hour12: true,
+                  })}
+                  stroke="#666"
+                  strokeDasharray="3 3"
+                  label={{
+                    value: "Current Time",
+                    position: "top",
+                    fill: "#666",
+                    fontSize: 12,
+                  }}
+                />
+              )}
+              <Tooltip
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length > 0) {
+                    let currentPeriodDate = "";
+                    let previousPeriodDate = "";
+
+                    if (timeRange === "day") {
+                      currentPeriodDate = selectedDate;
+                      previousPeriodDate = new Date(
+                        new Date(selectedDate).getTime() - 24 * 60 * 60 * 1000
+                      )
+                        .toISOString()
+                        .split("T")[0];
+                    } else if (timeRange === "week") {
+                      const currentDate = new Date();
+                      currentPeriodDate = `${new Date(
+                        currentDate.getTime() - 7 * 24 * 60 * 60 * 1000
+                      ).toLocaleDateString()} - ${currentDate.toLocaleDateString()}`;
+                      previousPeriodDate = `${new Date(
+                        currentDate.getTime() - 14 * 24 * 60 * 60 * 1000
+                      ).toLocaleDateString()} - ${new Date(
+                        currentDate.getTime() - 7 * 24 * 60 * 60 * 1000
+                      ).toLocaleDateString()}`;
+                    } else if (timeRange === "month") {
+                      const currentDate = new Date();
+                      currentPeriodDate = `${new Date(
+                        currentDate.getTime() - 30 * 24 * 60 * 60 * 1000
+                      ).toLocaleDateString()} - ${currentDate.toLocaleDateString()}`;
+                      previousPeriodDate = `${new Date(
+                        currentDate.getTime() - 60 * 24 * 60 * 60 * 1000
+                      ).toLocaleDateString()} - ${new Date(
+                        currentDate.getTime() - 30 * 24 * 60 * 60 * 1000
+                      ).toLocaleDateString()}`;
+                    }
+
+                    return (
+                      <div
+                        style={{
+                          backgroundColor: "white",
+                          padding: "10px",
+                          border: "1px solid #ccc",
+                          borderRadius: "4px",
+                        }}
+                      >
+                        <p>
+                          {timeRange === "day"
+                            ? `Hour: ${label}`
+                            : `Date: ${label}`}
+                        </p>
+                        <p>
+                          <span style={{ color: "#FF8C00" }}>
+                            Current Period: {payload[0].value}
+                          </span>
+                          <span style={{ color: "#000" }}>
+                            {" "}
+                            ({currentPeriodDate})
+                          </span>
+                        </p>
+                        {showPreviousPeriod && (
+                          <p>
+                            <span style={{ color: "#FF8C00" }}>
+                              Previous Period: {payload[1]?.value || 0}
+                            </span>
+                            <span style={{ color: "#000" }}>
+                              {" "}
+                              ({previousPeriodDate})
+                            </span>
+                          </p>
+                        )}
+                      </div>
+                    );
+                  }
+                  return null;
                 }}
               />
-            )}
-            <Tooltip
-              content={({ active, payload, label }) => {
-                if (active && payload && payload.length > 0) {
-                  return (
-                    <div style={{ 
-                      backgroundColor: 'white', 
-                      padding: '10px', 
-                      border: '1px solid #ccc',
-                      borderRadius: '4px'
-                    }}>
-                      <p>{timeRange === "day" ? `Hour: ${label}` : `Date: ${label}`}</p>
-                      <p style={{ color: '#FF8C00' }}>Current Period: {payload[0].value}</p>
-                      {showPreviousPeriod && (
-                        <p style={{ color: '#FF8C00' }}>Previous Period: {payload[1]?.value || 0}</p>
-                      )}
-                    </div>
-                  );
-                }
-                return null;
-              }}
-            />
-            <Line
-              type="monotone"
-              dataKey="count"
-              stroke="#FF8C00"
-              name="Current Period"
-            />
-            {showPreviousPeriod && (
               <Line
                 type="monotone"
-                dataKey="previousCount"
+                dataKey="count"
                 stroke="#FF8C00"
-                strokeDasharray="5 5"
-                name="Previous Period"
+                name="Current Period"
               />
-            )}
-          </LineChart>
-        </ResponsiveContainer>
+              {showPreviousPeriod && (
+                <Line
+                  type="monotone"
+                  dataKey="previousCount"
+                  stroke="#FF8C00"
+                  strokeDasharray="5 5"
+                  name="Previous Period"
+                />
+              )}
+            </LineChart>
+          </ResponsiveContainer>
+        )}
       </div>
-      <BottomDiv />
+      <div style={{ marginBottom: "64px" }}>
+        <BottomDiv />
+      </div>
     </div>
   );
 }
