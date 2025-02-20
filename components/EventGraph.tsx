@@ -81,6 +81,9 @@ export default function EventGraph() {
   const [timeRange, setTimeRange] = useState<"day" | "week" | "month">("week");
   const [selectedEvent, setSelectedEvent] = useState<string>("Transfer");
   const [showPreviousPeriod, setShowPreviousPeriod] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string>(
+    new Date().toISOString().split('T')[0]
+  );
 
   useEffect(() => {
     const fetchData = async () => {
@@ -114,8 +117,30 @@ export default function EventGraph() {
         
         setLast30MinCount(last30MinResponse[last30MinQuery.key]?.length || 0);
 
-        // Fetch current period
-        const currentQuery = getQueryForTimeRange(timeRange, selectedEvent);
+        // When a specific date is selected, calculate start and end timestamps for that day
+        const selectedDateTime = new Date(selectedDate);
+        const startOfDay = Math.floor(selectedDateTime.getTime() / 1000);
+        const endOfDay = startOfDay + (24 * 60 * 60);
+
+        // Modify the query to use selected date range when a date is selected
+        const currentQuery = timeRange === "day" && selectedDate ? {
+          query: `
+            query Events {
+              raw_events(
+                where: {
+                  event_name: {_eq: "${selectedEvent}"}, 
+                  block_timestamp: {_gte: ${startOfDay}, _lt: ${endOfDay}}
+                }
+                order_by: {block_timestamp: asc}
+              ) {
+                block_timestamp
+                event_name
+              }
+            }
+          `,
+          key: "raw_events",
+        } : getQueryForTimeRange(timeRange, selectedEvent);
+
         const currentResponse = await graphqlClient.request<
           EventResponse<TransferEvent>
         >(currentQuery.query);
@@ -181,9 +206,10 @@ export default function EventGraph() {
         const previousCounts: Record<string, number> = {};
 
         if (timeRange === "day") {
-          // Initialize current period hours
-          for (let i = 23; i >= 0; i--) {
-            const date = new Date(now * 1000 - i * 60 * 60 * 1000);
+          // Initialize hours for selected date
+          for (let i = 0; i < 24; i++) {
+            const date = new Date(selectedDateTime);
+            date.setHours(i, 0, 0, 0);
             const hourStr = date.toLocaleString("en-US", {
               day: "numeric",
               month: "short",
@@ -358,7 +384,7 @@ export default function EventGraph() {
     };
 
     fetchData();
-  }, [timeRange, selectedEvent]);
+  }, [timeRange, selectedEvent, selectedDate]);
 
   // Transform the data for Recharts with reversed order for all time ranges
   const chartData = Object.entries(eventCounts)
@@ -563,6 +589,28 @@ export default function EventGraph() {
             <option value="week">Last Week</option>
             <option value="month">Last Month</option>
           </select>
+
+          <span style={{ fontSize: "14px", color: "#666", marginLeft: "12px" }}>
+            Date:
+          </span>
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => {
+              setSelectedDate(e.target.value);
+              setTimeRange("day"); // Automatically switch to day view when date is selected
+            }}
+            style={{
+              padding: "8px 12px",
+              borderRadius: "6px",
+              border: "1px solid #e0e0e0",
+              fontSize: "14px",
+              backgroundColor: "white",
+              cursor: "pointer",
+              outline: "none",
+              minWidth: "120px",
+            }}
+          />
         </div>
         <label
           style={{
