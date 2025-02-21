@@ -50,8 +50,7 @@ const EventGraph: React.FC<EventGraphProps> = ({ eventTypes }) => {
   const [isLoading, setIsLoading] = useState(false);
   const selectedEventFound = eventTypes.find(
     (event) => event.id === selectedEvent
-  ) || { id: "", eventName: "", label: "", contractType: "" }
-
+  ) || { id: "", eventName: "", label: "", contractType: "" };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -67,7 +66,6 @@ const EventGraph: React.FC<EventGraphProps> = ({ eventTypes }) => {
           let offset = 0;
           let hasMore = true;
 
-
           while (hasMore) {
             const paginatedQuery = `
   query Events {
@@ -75,8 +73,9 @@ const EventGraph: React.FC<EventGraphProps> = ({ eventTypes }) => {
       where: {
         event_name: {_eq: "${selectedEventFound.eventName}"}, 
         contract_name: {_eq: "${selectedEventFound.contractType}"},
-        block_timestamp: {_gte: ${startTime}${endTime ? `, _lt: ${endTime}` : ""
-              }}
+        block_timestamp: {_gte: ${startTime}${
+              endTime ? `, _lt: ${endTime}` : ""
+            }}
       }
       order_by: {block_timestamp: asc}
       limit: 1000
@@ -88,8 +87,6 @@ const EventGraph: React.FC<EventGraphProps> = ({ eventTypes }) => {
     }
   }
 `;
-
-
 
             const response = await graphqlClient.request<EventsResponse>(
               paginatedQuery
@@ -135,45 +132,45 @@ const EventGraph: React.FC<EventGraphProps> = ({ eventTypes }) => {
         const currentEvents =
           timeRange === "day" && selectedDate
             ? await fetchEventsWithPagination(
-              selectedEvent,
-              startOfDay,
-              endOfDay
-            )
+                selectedEvent,
+                startOfDay,
+                endOfDay
+              )
             : await fetchEventsWithPagination(
-              selectedEvent,
-              timeRange === "day"
-                ? oneDayAgo
-                : timeRange === "week"
+                selectedEvent,
+                timeRange === "day"
+                  ? oneDayAgo
+                  : timeRange === "week"
                   ? oneWeekAgo
                   : oneMonthAgo
-            );
+              );
 
         // Fetch previous period events
         const previousEvents =
           timeRange === "day" && selectedDate
             ? await fetchEventsWithPagination(
-              selectedEvent,
-              previousStartOfDay,
-              previousEndOfDay
-            )
+                selectedEvent,
+                previousStartOfDay,
+                previousEndOfDay
+              )
             : await fetchEventsWithPagination(
-              selectedEvent,
-              (timeRange === "day"
-                ? oneDayAgo
-                : timeRange === "week"
+                selectedEvent,
+                (timeRange === "day"
+                  ? oneDayAgo
+                  : timeRange === "week"
                   ? oneWeekAgo
                   : oneMonthAgo) -
-              (timeRange === "day"
-                ? 24 * 60 * 60
-                : timeRange === "week"
-                  ? 7 * 24 * 60 * 60
-                  : 30 * 24 * 60 * 60),
-              timeRange === "day"
-                ? oneDayAgo
-                : timeRange === "week"
+                  (timeRange === "day"
+                    ? 24 * 60 * 60
+                    : timeRange === "week"
+                    ? 7 * 24 * 60 * 60
+                    : 30 * 24 * 60 * 60),
+                timeRange === "day"
+                  ? oneDayAgo
+                  : timeRange === "week"
                   ? oneWeekAgo
                   : oneMonthAgo
-            );
+              );
 
         const counts: Record<string, number> = {};
         const previousCounts: Record<string, number> = {};
@@ -419,17 +416,17 @@ const EventGraph: React.FC<EventGraphProps> = ({ eventTypes }) => {
   const mergedChartData =
     timeRange === "day"
       ? chartData.map((current, index) => ({
-        timeLabel: current.timeLabel,
-        count: current.count,
-        previousCount: previousChartData[index]?.previousCount || 0,
-      }))
+          timeLabel: current.timeLabel,
+          count: current.count,
+          previousCount: previousChartData[index]?.previousCount || 0,
+        }))
       : chartData.map((current, index) => ({
-        timeLabel: current.timeLabel,
-        count: chartData[chartData.length - 1 - index].count,
-        previousCount:
-          previousChartData[previousChartData.length - 1 - index]
-            ?.previousCount || 0,
-      }));
+          timeLabel: current.timeLabel,
+          count: chartData[chartData.length - 1 - index].count,
+          previousCount:
+            previousChartData[previousChartData.length - 1 - index]
+              ?.previousCount || 0,
+        }));
 
   return (
     <div>
@@ -512,7 +509,8 @@ const EventGraph: React.FC<EventGraphProps> = ({ eventTypes }) => {
                 marginBottom: "4px",
               }}
             >
-              {selectedEventFound.contractType} {selectedEventFound.eventName} Events
+              {selectedEventFound.contractType} {selectedEventFound.eventName}{" "}
+              Events
             </div>
             <div
               style={{ fontSize: "24px", fontWeight: "bold", color: "#FF8C00" }}
@@ -781,24 +779,42 @@ const EventGraph: React.FC<EventGraphProps> = ({ eventTypes }) => {
               <Tooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length > 0) {
-
-
                     let prevousDate = "";
+                    let formattedLabel = label;
+
                     if (timeRange === "day") {
-
-                      prevousDate = new Date(new Date(selectedDate).getTime() - 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-
+                      prevousDate = new Date(
+                        new Date(selectedDate).getTime() - 24 * 60 * 60 * 1000
+                      ).toLocaleDateString("en-GB", {
+                        day: "numeric",
+                        month: "short",
+                      }); // e.g., "11 Feb"
                     } else if (timeRange === "week") {
-                      prevousDate = new Date(new Date(selectedDate).getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+                      prevousDate = new Date(
+                        new Date(selectedDate).getTime() -
+                          7 * 24 * 60 * 60 * 1000
+                      ).toLocaleDateString("en-GB", {
+                        day: "numeric",
+                        month: "short",
+                      });
+                    } else if (timeRange === "month") {
+                      const selectedDateObj = new Date(selectedDate);
+                      const actualDate = new Date(
+                        selectedDateObj.getTime() - 30 * 24 * 60 * 60 * 1000
+                      );
+                      prevousDate = actualDate.toLocaleDateString("en-GB", {
+                        day: "numeric",
+                        month: "short",
+                      });
                     }
-                    else if (timeRange === "month") {
 
-                      const selectedDate = new Date();
-                      const actualDate = new Date(selectedDate.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-                      prevousDate = actualDate.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+                    // Format label if it's a date
+                    if (timeRange !== "day") {
+                      formattedLabel = new Date(label).toLocaleDateString(
+                        "en-GB",
+                        { day: "numeric", month: "short" }
+                      );
                     }
-
 
                     return (
                       <div
@@ -809,16 +825,14 @@ const EventGraph: React.FC<EventGraphProps> = ({ eventTypes }) => {
                           borderRadius: "4px",
                         }}
                       >
-
                         <p>
                           <span style={{ color: "#FF8C00" }}>
                             Current Period: {payload[0].value}
                           </span>
                           <span style={{ color: "#000" }}>
-                            {" "}
                             {timeRange === "day"
-                              ? `Hour: ${label}`
-                              : `Date: ${label}`}
+                              ? ` Hour: ${label}`
+                              : ` ${formattedLabel}`}
                           </span>
                         </p>
                         {showPreviousPeriod && (
@@ -827,7 +841,8 @@ const EventGraph: React.FC<EventGraphProps> = ({ eventTypes }) => {
                               Previous Period: {payload[1]?.value || 0}
                             </span>
                             <span style={{ color: "#000" }}>
-                              {(prevousDate)}
+                              {" "}
+                              {prevousDate}
                             </span>
                           </p>
                         )}
@@ -837,6 +852,7 @@ const EventGraph: React.FC<EventGraphProps> = ({ eventTypes }) => {
                   return null;
                 }}
               />
+
               <Line
                 type="monotone"
                 dataKey="count"
@@ -859,8 +875,8 @@ const EventGraph: React.FC<EventGraphProps> = ({ eventTypes }) => {
       <div style={{ marginBottom: "64px" }}>
         <BottomDiv />
       </div>
-    </div >
+    </div>
   );
-}
+};
 
 export default EventGraph;
