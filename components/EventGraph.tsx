@@ -32,11 +32,41 @@ const oneMonthAgo = now - 30 * 24 * 60 * 60;
 
 // Define available events
 const eventTypes = [
-  { value: "Transfer", label: "Transfer Events" },
-  { value: "Approval", label: "Approval Events" },
-  { value: "DelegateChanged", label: "Delegate Changed Events" },
-  { value: "DelegateVotesChanged", label: "Delegate Votes Changed Events" },
-  { value: "OwnershipTransferred", label: "Ownership Transferred Events" },
+  {
+    value: "Transfer",
+    label: "Transfer Events for ERC20",
+    contractType: "Token",
+  },
+  { value: "Approval", label: "Approval Events", contractType: "Token" },
+  {
+    value: "DelegateChanged",
+    label: "Delegate Changed Events",
+    contractType: "Token",
+  },
+  {
+    value: "DelegateVotesChanged",
+    label: "Delegate Votes Changed Events",
+    contractType: "Token",
+  },
+  {
+    value: "OwnershipTransferred",
+    label: "Ownership Transferred Events",
+    contractType: "Token",
+  },
+  { value: "Deposit", label: "Silo V2 Deposits", contractType: "Silo" },
+  { value: "Transfer", label: "Silo V2 Transfers",contractType: "Silo" },
+  { value: "Withdraws", label: "Silo V2 Withdraws", contractType: "Silo" },
+  {
+    value: "Initialized",
+    label: "Silo V2 Initializations",
+    contractType: "Silo",
+  },
+  {
+    value: "HooksUpdated",
+    label: "Silo V2 HooksUpdated",
+    contractType: "Silo",
+  },
+  //{ value: "Approval", label: "Silo V2 Approvals",contractType: "Silo" },
 ];
 
 export default function EventGraph() {
@@ -52,6 +82,13 @@ export default function EventGraph() {
     new Date().toISOString().split("T")[0]
   );
   const [isLoading, setIsLoading] = useState(false);
+  const selectedEventType = eventTypes.find(
+    (event) => event.value === selectedEvent
+  );
+  const selectedContractType = selectedEventType?.contractType || "";
+  const uniqueEventTypes = Array.from(
+    new Map(eventTypes.map((event) => [event.value, event])).values()
+  );
 
   useEffect(() => {
     const fetchData = async () => {
@@ -69,24 +106,41 @@ export default function EventGraph() {
 
           while (hasMore) {
             const paginatedQuery = `
-              query Events {
-                raw_events(
-                  where: {
-                    event_name: {_eq: "${selectedEvent}"}, 
-                    block_timestamp: {_gte: ${startTime}${
+  query Events {
+    raw_events(
+      where: {
+        event_name: {_eq: "${selectedEvent}"}, 
+        contract_name: {_eq: "${selectedContractType}"},
+        block_timestamp: {_gte: ${startTime}${
               endTime ? `, _lt: ${endTime}` : ""
             }}
-                  }
-                  order_by: {block_timestamp: asc}
-                  limit: 1000
-                  offset: ${offset}
-                ) {
-                  block_timestamp
-                  event_name
-                }
-              }
-            `;
+      }
+      order_by: {block_timestamp: asc}
+      limit: 1000
+      offset: ${offset}
+    ) {
+      block_timestamp
+      event_name
+      contract_name
+    }
+  }
+`;
 
+const eventQuery = `
+  query EventTypes {
+  raw_events(
+    distinct_on: [event_name, contract_name]
+  ) {
+    event_name
+    contract_name
+  }
+}
+`;
+
+            const eventTypes = await graphqlClient.request(eventQuery);
+             console.log(eventTypes);
+
+             
             const response = await graphqlClient.request<EventsResponse>(
               paginatedQuery
             );
@@ -452,11 +506,8 @@ export default function EventGraph() {
               0x6f80310CA7F2C654691D1383149Fa1A57d8AB1f8
             </a>
           </h1>
-          
-          <p>
-            
-            Your ultimate analytics dashboard for smarter decisions! 🚀📊
-          </p>
+
+          <p>Your ultimate analytics dashboard for smarter decisions! 🚀📊</p>
         </div>
 
         <div
