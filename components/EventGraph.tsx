@@ -789,7 +789,7 @@ const EventGraph: React.FC<EventGraphProps> = ({ eventTypes }) => {
                   
 
                     if (timeRange === "day") {
-                      const now = new Date();
+              
                       // Previous period should be the same hour on the previous day
 
   
