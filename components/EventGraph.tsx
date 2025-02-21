@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { graphqlClient } from "../lib/graphql";
+import { EventType } from "../app/types";
 import {
   LineChart,
   Line,
@@ -30,64 +31,29 @@ const oneDayAgo = now - 24 * 60 * 60;
 const oneWeekAgo = now - 7 * 24 * 60 * 60;
 const oneMonthAgo = now - 30 * 24 * 60 * 60;
 
-// Define available events
-const eventTypes = [
-  {
-    value: "Transfer",
-    label: "Transfer Events for ERC20",
-    contractType: "Token",
-  },
-  { value: "Approval", label: "Approval Events", contractType: "Token" },
-  {
-    value: "DelegateChanged",
-    label: "Delegate Changed Events",
-    contractType: "Token",
-  },
-  {
-    value: "DelegateVotesChanged",
-    label: "Delegate Votes Changed Events",
-    contractType: "Token",
-  },
-  {
-    value: "OwnershipTransferred",
-    label: "Ownership Transferred Events",
-    contractType: "Token",
-  },
-  { value: "Deposit", label: "Silo V2 Deposits", contractType: "Silo" },
-  { value: "Transfer", label: "Silo V2 Transfers",contractType: "Silo" },
-  { value: "Withdraws", label: "Silo V2 Withdraws", contractType: "Silo" },
-  {
-    value: "Initialized",
-    label: "Silo V2 Initializations",
-    contractType: "Silo",
-  },
-  {
-    value: "HooksUpdated",
-    label: "Silo V2 HooksUpdated",
-    contractType: "Silo",
-  },
-  //{ value: "Approval", label: "Silo V2 Approvals",contractType: "Silo" },
-];
+type EventGraphProps = {
+  eventTypes: EventType[];
+};
 
-export default function EventGraph() {
+const EventGraph: React.FC<EventGraphProps> = ({ eventTypes }) => {
   const [eventCounts, setEventCounts] = useState<Record<string, number>>({});
   const [previousEventCounts, setPreviousEventCounts] = useState<
     Record<string, number>
   >({});
   const [last30MinCount, setLast30MinCount] = useState<number>(0);
   const [timeRange, setTimeRange] = useState<"day" | "week" | "month">("week");
-  const [selectedEvent, setSelectedEvent] = useState<string>("Transfer");
-  const [showPreviousPeriod, setShowPreviousPeriod] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<string>("");
+  const [showPreviousPeriod, setShowPreviousPeriod] = useState(true);
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toISOString().split("T")[0]
   );
   const [isLoading, setIsLoading] = useState(false);
-  const selectedEventType = eventTypes.find(
-    (event) => event.value === selectedEvent
-  );
-  const selectedContractType = selectedEventType?.contractType || "";
+  const selectedEventFound = eventTypes.find(
+    (event) => event.id === selectedEvent
+  ) || { id: "", eventName: "", label: "", contractType: "" }
+
   const uniqueEventTypes = Array.from(
-    new Map(eventTypes.map((event) => [event.value, event])).values()
+    new Map(eventTypes.map((event) => [event.eventName, event])).values()
   );
 
   useEffect(() => {
@@ -96,7 +62,7 @@ export default function EventGraph() {
       try {
         // Function to fetch events with pagination
         const fetchEventsWithPagination = async (
-          query: string,
+          id: string,
           startTime: number,
           endTime?: number
         ) => {
@@ -104,16 +70,16 @@ export default function EventGraph() {
           let offset = 0;
           let hasMore = true;
 
+
           while (hasMore) {
             const paginatedQuery = `
   query Events {
     raw_events(
       where: {
-        event_name: {_eq: "${selectedEvent}"}, 
-        contract_name: {_eq: "${selectedContractType}"},
-        block_timestamp: {_gte: ${startTime}${
-              endTime ? `, _lt: ${endTime}` : ""
-            }}
+        event_name: {_eq: "${selectedEventFound.eventName}"}, 
+        contract_name: {_eq: "${selectedEventFound.contractType}"},
+        block_timestamp: {_gte: ${startTime}${endTime ? `, _lt: ${endTime}` : ""
+              }}
       }
       order_by: {block_timestamp: asc}
       limit: 1000
@@ -126,21 +92,8 @@ export default function EventGraph() {
   }
 `;
 
-const eventQuery = `
-  query EventTypes {
-  raw_events(
-    distinct_on: [event_name, contract_name]
-  ) {
-    event_name
-    contract_name
-  }
-}
-`;
 
-            const eventTypes = await graphqlClient.request(eventQuery);
-             console.log(eventTypes);
 
-             
             const response = await graphqlClient.request<EventsResponse>(
               paginatedQuery
             );
@@ -185,45 +138,45 @@ const eventQuery = `
         const currentEvents =
           timeRange === "day" && selectedDate
             ? await fetchEventsWithPagination(
-                selectedEvent,
-                startOfDay,
-                endOfDay
-              )
+              selectedEvent,
+              startOfDay,
+              endOfDay
+            )
             : await fetchEventsWithPagination(
-                selectedEvent,
-                timeRange === "day"
-                  ? oneDayAgo
-                  : timeRange === "week"
+              selectedEvent,
+              timeRange === "day"
+                ? oneDayAgo
+                : timeRange === "week"
                   ? oneWeekAgo
                   : oneMonthAgo
-              );
+            );
 
         // Fetch previous period events
         const previousEvents =
           timeRange === "day" && selectedDate
             ? await fetchEventsWithPagination(
-                selectedEvent,
-                previousStartOfDay,
-                previousEndOfDay
-              )
+              selectedEvent,
+              previousStartOfDay,
+              previousEndOfDay
+            )
             : await fetchEventsWithPagination(
-                selectedEvent,
-                (timeRange === "day"
-                  ? oneDayAgo
-                  : timeRange === "week"
+              selectedEvent,
+              (timeRange === "day"
+                ? oneDayAgo
+                : timeRange === "week"
                   ? oneWeekAgo
                   : oneMonthAgo) -
-                  (timeRange === "day"
-                    ? 24 * 60 * 60
-                    : timeRange === "week"
-                    ? 7 * 24 * 60 * 60
-                    : 30 * 24 * 60 * 60),
-                timeRange === "day"
-                  ? oneDayAgo
-                  : timeRange === "week"
+              (timeRange === "day"
+                ? 24 * 60 * 60
+                : timeRange === "week"
+                  ? 7 * 24 * 60 * 60
+                  : 30 * 24 * 60 * 60),
+              timeRange === "day"
+                ? oneDayAgo
+                : timeRange === "week"
                   ? oneWeekAgo
                   : oneMonthAgo
-              );
+            );
 
         const counts: Record<string, number> = {};
         const previousCounts: Record<string, number> = {};
@@ -469,17 +422,17 @@ const eventQuery = `
   const mergedChartData =
     timeRange === "day"
       ? chartData.map((current, index) => ({
-          timeLabel: current.timeLabel,
-          count: current.count,
-          previousCount: previousChartData[index]?.previousCount || 0,
-        }))
+        timeLabel: current.timeLabel,
+        count: current.count,
+        previousCount: previousChartData[index]?.previousCount || 0,
+      }))
       : chartData.map((current, index) => ({
-          timeLabel: current.timeLabel,
-          count: chartData[chartData.length - 1 - index].count,
-          previousCount:
-            previousChartData[previousChartData.length - 1 - index]
-              ?.previousCount || 0,
-        }));
+        timeLabel: current.timeLabel,
+        count: chartData[chartData.length - 1 - index].count,
+        previousCount:
+          previousChartData[previousChartData.length - 1 - index]
+            ?.previousCount || 0,
+      }));
 
   return (
     <div>
@@ -507,7 +460,7 @@ const eventQuery = `
             </a>
           </h1>
 
-          <p>Your ultimate analytics dashboard for smarter decisions! 🚀📊</p>
+          {/* <p>Your ultimate analytics dashboard for smarter decisions! 🚀📊</p> */}
         </div>
 
         <div
@@ -562,7 +515,7 @@ const eventQuery = `
                 marginBottom: "4px",
               }}
             >
-              {selectedEvent} Events
+              {selectedEventFound.contractType} {selectedEventFound.eventName} Events
             </div>
             <div
               style={{ fontSize: "24px", fontWeight: "bold", color: "#FF8C00" }}
@@ -676,7 +629,7 @@ const eventQuery = `
         >
           <span style={{ fontSize: "14px", color: "#666" }}>Event Type:</span>
           <select
-            value={selectedEvent}
+            value={selectedEventFound.id}
             onChange={(e) => setSelectedEvent(e.target.value)}
             style={{
               padding: "8px 12px",
@@ -690,7 +643,7 @@ const eventQuery = `
             }}
           >
             {eventTypes.map((event) => (
-              <option key={event.value} value={event.value}>
+              <option key={event.label} value={event.id}>
                 {event.label}
               </option>
             ))}
@@ -925,6 +878,8 @@ const eventQuery = `
       <div style={{ marginBottom: "64px" }}>
         <BottomDiv />
       </div>
-    </div>
+    </div >
   );
 }
+
+export default EventGraph;
