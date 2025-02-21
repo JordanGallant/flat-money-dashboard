@@ -816,6 +816,23 @@ const EventGraph: React.FC<EventGraphProps> = ({ eventTypes }) => {
                       ).toLocaleDateString()}`;
                     }
 
+                    let prevousDate = "";
+                    if (timeRange === "day") {
+
+                      prevousDate = new Date(new Date(selectedDate).getTime() - 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+
+                    } else if (timeRange === "week") {
+                      prevousDate = new Date(new Date(selectedDate).getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+                    }
+                    else if (timeRange === "month") {
+
+                      const selectedDate = new Date();
+                      const actualDate = new Date(selectedDate.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+                      prevousDate = actualDate.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+                    }
+
+
                     return (
                       <div
                         style={{
@@ -825,18 +842,16 @@ const EventGraph: React.FC<EventGraphProps> = ({ eventTypes }) => {
                           borderRadius: "4px",
                         }}
                       >
-                        <p>
-                          {timeRange === "day"
-                            ? `Hour: ${label}`
-                            : `Date: ${label}`}
-                        </p>
+
                         <p>
                           <span style={{ color: "#FF8C00" }}>
                             Current Period: {payload[0].value}
                           </span>
                           <span style={{ color: "#000" }}>
                             {" "}
-                            ({currentPeriodDate})
+                            {timeRange === "day"
+                              ? `Hour: ${label}`
+                              : `Date: ${label}`}
                           </span>
                         </p>
                         {showPreviousPeriod && (
@@ -845,8 +860,7 @@ const EventGraph: React.FC<EventGraphProps> = ({ eventTypes }) => {
                               Previous Period: {payload[1]?.value || 0}
                             </span>
                             <span style={{ color: "#000" }}>
-                              {" "}
-                              ({previousPeriodDate})
+                              {(prevousDate)}
                             </span>
                           </p>
                         )}
