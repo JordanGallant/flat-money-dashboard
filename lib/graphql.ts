@@ -2,6 +2,7 @@ import { GraphQLClient } from "graphql-request";
 
 export const graphqlClient = new GraphQLClient(
   "https://indexer.dev.hyperindex.xyz/1468da7/v1/graphql"
+  // "https://indexer.dev.hyperindex.xyz/6450c10/v1/graphql"
 );
 
 export interface SiloApproval {
