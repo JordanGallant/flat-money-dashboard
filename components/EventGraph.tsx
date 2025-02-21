@@ -779,41 +779,52 @@ const EventGraph: React.FC<EventGraphProps> = ({ eventTypes }) => {
               <Tooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length > 0) {
-                    let prevousDate = "";
-                    let formattedLabel = label;
+                    let previousDate = "";
+                    let formattedLabel = "";
+
+                    // Convert label to Date object
+                    const labelDate = new Date(label);
+
+                    // Extracting the hour directly from the label
+                  
 
                     if (timeRange === "day") {
-                      prevousDate = new Date(
-                        new Date(selectedDate).getTime() - 24 * 60 * 60 * 1000
-                      ).toLocaleDateString("en-GB", {
+                      const now = new Date();
+                      // Previous period should be the same hour on the previous day
+
+  
+
+                      // Current label time (hovered time)
+          
+                    } else if (timeRange === "week") {
+                      // Previous period should be the same day of the week from last week
+                      const prevWeek = new Date(
+                        labelDate.getTime() - 7 * 24 * 60 * 60 * 1000
+                      );
+                      previousDate = prevWeek.toLocaleDateString("en-GB", {
                         day: "numeric",
                         month: "short",
-                      }); // e.g., "11 Feb"
-                    } else if (timeRange === "week") {
-                      prevousDate = new Date(
-                        new Date(selectedDate).getTime() -
-                          7 * 24 * 60 * 60 * 1000
-                      ).toLocaleDateString("en-GB", {
+                      });
+
+                      // Format the current label as a short date
+                      formattedLabel = labelDate.toLocaleDateString("en-GB", {
                         day: "numeric",
                         month: "short",
                       });
                     } else if (timeRange === "month") {
-                      const selectedDateObj = new Date(selectedDate);
-                      const actualDate = new Date(
-                        selectedDateObj.getTime() - 30 * 24 * 60 * 60 * 1000
-                      );
-                      prevousDate = actualDate.toLocaleDateString("en-GB", {
+                      // Previous period should be the same day from the previous month
+                      const prevMonth = new Date(labelDate);
+                      prevMonth.setMonth(prevMonth.getMonth() - 1);
+                      previousDate = prevMonth.toLocaleDateString("en-GB", {
                         day: "numeric",
                         month: "short",
                       });
-                    }
 
-                    // Format label if it's a date
-                    if (timeRange !== "day") {
-                      formattedLabel = new Date(label).toLocaleDateString(
-                        "en-GB",
-                        { day: "numeric", month: "short" }
-                      );
+                      // Format the current label as a short date
+                      formattedLabel = labelDate.toLocaleDateString("en-GB", {
+                        day: "numeric",
+                        month: "short",
+                      });
                     }
 
                     return (
@@ -831,7 +842,7 @@ const EventGraph: React.FC<EventGraphProps> = ({ eventTypes }) => {
                           </span>
                           <span style={{ color: "#000" }}>
                             {timeRange === "day"
-                              ? ` Hour: ${label}`
+                              ? ` ${formattedLabel}`
                               : ` ${formattedLabel}`}
                           </span>
                         </p>
@@ -842,7 +853,7 @@ const EventGraph: React.FC<EventGraphProps> = ({ eventTypes }) => {
                             </span>
                             <span style={{ color: "#000" }}>
                               {" "}
-                              {prevousDate}
+                              {previousDate}
                             </span>
                           </p>
                         )}
