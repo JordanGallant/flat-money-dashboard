@@ -18,7 +18,7 @@ interface DistinctEventsResponse {
 
 export default function Home() {
 
-  let [eventTypes, setEventTypes] = useState<EventType[]>([]);
+  const [eventTypes, setEventTypes] = useState<EventType[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -36,11 +36,11 @@ export default function Home() {
 
       const eventTypesResponse: DistinctEventsResponse = await graphqlClient.request(eventQuery);
 
-      let eventTypes: EventType[] = eventTypesResponse.raw_events.map((event) => {
+      const eventTypesMapped: EventType[] = eventTypesResponse.raw_events.map((event) => {
         return { id: event.contract_name + event.event_name, eventName: event.event_name, label: `${event.contract_name} - ${event.event_name}`, contractType: event.contract_name }
       })
 
-      setEventTypes(eventTypes);
+      setEventTypes(eventTypesMapped);
 
     }
 

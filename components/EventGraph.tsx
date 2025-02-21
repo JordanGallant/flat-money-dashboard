@@ -52,9 +52,6 @@ const EventGraph: React.FC<EventGraphProps> = ({ eventTypes }) => {
     (event) => event.id === selectedEvent
   ) || { id: "", eventName: "", label: "", contractType: "" }
 
-  const uniqueEventTypes = Array.from(
-    new Map(eventTypes.map((event) => [event.eventName, event])).values()
-  );
 
   useEffect(() => {
     const fetchData = async () => {
@@ -784,37 +781,7 @@ const EventGraph: React.FC<EventGraphProps> = ({ eventTypes }) => {
               <Tooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length > 0) {
-                    let currentPeriodDate = "";
-                    let previousPeriodDate = "";
 
-                    if (timeRange === "day") {
-                      currentPeriodDate = selectedDate;
-                      previousPeriodDate = new Date(
-                        new Date(selectedDate).getTime() - 24 * 60 * 60 * 1000
-                      )
-                        .toISOString()
-                        .split("T")[0];
-                    } else if (timeRange === "week") {
-                      const currentDate = new Date();
-                      currentPeriodDate = `${new Date(
-                        currentDate.getTime() - 7 * 24 * 60 * 60 * 1000
-                      ).toLocaleDateString()} - ${currentDate.toLocaleDateString()}`;
-                      previousPeriodDate = `${new Date(
-                        currentDate.getTime() - 14 * 24 * 60 * 60 * 1000
-                      ).toLocaleDateString()} - ${new Date(
-                        currentDate.getTime() - 7 * 24 * 60 * 60 * 1000
-                      ).toLocaleDateString()}`;
-                    } else if (timeRange === "month") {
-                      const currentDate = new Date();
-                      currentPeriodDate = `${new Date(
-                        currentDate.getTime() - 30 * 24 * 60 * 60 * 1000
-                      ).toLocaleDateString()} - ${currentDate.toLocaleDateString()}`;
-                      previousPeriodDate = `${new Date(
-                        currentDate.getTime() - 60 * 24 * 60 * 60 * 1000
-                      ).toLocaleDateString()} - ${new Date(
-                        currentDate.getTime() - 30 * 24 * 60 * 60 * 1000
-                      ).toLocaleDateString()}`;
-                    }
 
                     let prevousDate = "";
                     if (timeRange === "day") {
