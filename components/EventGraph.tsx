@@ -448,9 +448,9 @@ const EventGraph: React.FC<EventGraphProps> = ({ eventTypes }) => {
               color: "#333",
             }}
           >
-            Ostium Event Dashboard -{" "}
-            <a href="https://arbiscan.io/address/0x20D419a8e12C45f88fDA7c5760bb6923Cee27F98#events">
-            0x20D419a8e12C45f88fDA7c5760bb6923Cee27F98
+            Flat Money Event Dashboard -{" "}
+            <a href="https://basescan.org/address/0x95fa1ddc9a78273f795e67abe8f1cd2cd39831ff#code">
+            0x95Fa1ddc9a78273f795e67AbE8f1Cd2Cd39831fF
             </a>
           </h1>
 

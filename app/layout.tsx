@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ostium Event Dashboard",
-  description: "Event Dashboard for Ostium",
+  title: "Flat money Event Dashboard",
+  description: "Event Dashboard for Flat Money",
 };
 
 export default function RootLayout({
