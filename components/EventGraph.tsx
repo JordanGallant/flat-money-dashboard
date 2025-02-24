@@ -448,9 +448,9 @@ const EventGraph: React.FC<EventGraphProps> = ({ eventTypes }) => {
               color: "#333",
             }}
           >
-            Silo Event Dashboard -{" "}
-            <a href="https://etherscan.io/address/0x6f80310CA7F2C654691D1383149Fa1A57d8AB1f8">
-              0x6f80310CA7F2C654691D1383149Fa1A57d8AB1f8
+            Ostium Event Dashboard -{" "}
+            <a href="https://arbiscan.io/address/0x20D419a8e12C45f88fDA7c5760bb6923Cee27F98#events">
+            0x20D419a8e12C45f88fDA7c5760bb6923Cee27F98
             </a>
           </h1>
 
